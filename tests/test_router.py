@@ -47,10 +47,10 @@ KILO_CODE_MODEL = "cohere/north-mini-code:free"
 KILO_LONG_MODEL = "dots-studio/dots-3-note-preview:free"
 LLM7_RESULT = {
     "provider": "llm7",
-    "model": "GLM-5.3-Flash",
+    "model": "gpt-oss:20b",
     "content": "llm7 response",
 }
-LLM7_GENERAL_MODEL = "GLM-5.3-Flash"
+LLM7_GENERAL_MODEL = "gpt-oss:20b"
 LLM7_REASONING_MODEL = "gpt-oss:20b"
 LLM7_CODE_MODEL = "gpt-oss:20b"
 

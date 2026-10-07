@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     llm7_enabled: bool = False
     llm7_api_key: str | None = None
     llm7_base_url: str = Field(default="https://api.llm7.io/v1", min_length=1)
-    llm7_general_model: str = Field(default="GLM-5.3-Flash", min_length=1)
+    llm7_general_model: str = Field(default="gpt-oss:20b", min_length=1)
     llm7_reasoning_model: str = Field(default="gpt-oss:20b", min_length=1)
     llm7_code_model: str = Field(default="gpt-oss:20b", min_length=1)
     llm7_timeout_seconds: float = Field(default=60.0, gt=0)

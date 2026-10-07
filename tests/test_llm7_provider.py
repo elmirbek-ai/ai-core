@@ -22,7 +22,7 @@ from app.llm.providers.llm7 import LLM7Provider
 MESSAGES = [{"role": "user", "content": "private prompt"}]
 SECRET = "llm7-test-secret"
 BASE_URL = "https://llm7.example.invalid/v1"
-GENERAL_MODEL = "GLM-5.3-Flash"
+GENERAL_MODEL = "gpt-oss:20b"
 REASONING_MODEL = "gpt-oss:20b"
 CODE_MODEL = "gpt-oss:20b"
 
