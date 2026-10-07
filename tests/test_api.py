@@ -131,10 +131,15 @@ def test_lifespan_shares_health_manager_with_router() -> None:
         router_budget_policy = app.state.llm_service.router.budget_policy
         telemetry = app.state.llm_telemetry
         router_telemetry = app.state.llm_service.router.telemetry
+        concurrency_manager = app.state.provider_concurrency_manager
+        router_concurrency_manager = (
+            app.state.llm_service.router.concurrency_manager
+        )
 
         assert router_manager is manager
         assert router_budget_policy is budget_policy
         assert router_telemetry is telemetry
+        assert router_concurrency_manager is concurrency_manager
 
 
 @pytest.mark.parametrize(

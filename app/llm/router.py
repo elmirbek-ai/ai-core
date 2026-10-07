@@ -1,5 +1,6 @@
 import asyncio
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 import logging
 import time
@@ -7,6 +8,10 @@ from typing import Any
 
 from app.llm.base import BaseLLMProvider
 from app.llm.budget import RequestBudgetPolicy
+from app.llm.concurrency import (
+    ProviderConcurrencyManager,
+    ProviderConcurrencyTimeout,
+)
 from app.llm.exceptions import (
     LLMAuthenticationError,
     LLMProviderError,
@@ -58,6 +63,7 @@ class LLMRouter:
         health_manager: ProviderHealthManager | None = None,
         budget_policy: RequestBudgetPolicy | None = None,
         telemetry: LLMTelemetry | None = None,
+        concurrency_manager: ProviderConcurrencyManager | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self.primary_provider = primary_provider
@@ -76,6 +82,7 @@ class LLMRouter:
         self.health_manager = health_manager
         self.budget_policy = budget_policy
         self.telemetry = telemetry
+        self.concurrency_manager = concurrency_manager
         self._clock = clock
 
     async def chat(
@@ -222,14 +229,21 @@ class LLMRouter:
                     provider.name,
                     task.value,
                 )
-            attempt_started = self._clock()
+            attempt_started: float | None = None
             try:
-                result = await self._call_provider(
-                    provider=provider,
-                    provider_model=provider_model,
-                    messages=messages,
-                    remaining=remaining,
-                )
+                async with self._provider_slot(provider.name, remaining):
+                    provider_remaining = remaining
+                    if deadline is not None:
+                        provider_remaining = deadline - self._clock()
+                        if provider_remaining <= 0:
+                            raise ProviderConcurrencyTimeout from None
+                    attempt_started = self._clock()
+                    result = await self._call_provider(
+                        provider=provider,
+                        provider_model=provider_model,
+                        messages=messages,
+                        remaining=provider_remaining,
+                    )
                 attempt_latency = self._clock() - attempt_started
                 if self.telemetry is not None:
                     await self.telemetry.record_provider_success(
@@ -240,7 +254,16 @@ class LLMRouter:
                     await self.health_manager.record_success(provider.name)
                 execution.selected_provider = provider.name
                 return result
+            except ProviderConcurrencyTimeout:
+                logger.warning(
+                    "Request budget exhausted waiting for provider %s concurrency slot",
+                    provider.name,
+                )
+                raise LLMTimeoutError(
+                    "LLM request budget exhausted",
+                ) from None
             except _RequestBudgetExceeded:
+                assert attempt_started is not None
                 attempt_latency = self._clock() - attempt_started
                 timeout_error = LLMTimeoutError(
                     "LLM request budget exhausted",
@@ -264,6 +287,7 @@ class LLMRouter:
                 )
                 raise timeout_error from None
             except LLMAuthenticationError as error:
+                assert attempt_started is not None
                 attempt_latency = self._clock() - attempt_started
                 if self.telemetry is not None:
                     await self.telemetry.record_provider_failure(
@@ -274,6 +298,7 @@ class LLMRouter:
                 execution.failed_attempts += 1
                 raise
             except RECOVERABLE_PROVIDER_ERRORS as error:
+                assert attempt_started is not None
                 attempt_latency = self._clock() - attempt_started
                 if self.health_manager is not None:
                     await self.health_manager.record_failure(
@@ -297,6 +322,7 @@ class LLMRouter:
                         next_provider.name,
                     )
             except LLMProviderError as error:
+                assert attempt_started is not None
                 attempt_latency = self._clock() - attempt_started
                 if self.telemetry is not None:
                     await self.telemetry.record_provider_failure(
@@ -307,6 +333,7 @@ class LLMRouter:
                 execution.failed_attempts += 1
                 raise
             except Exception as error:
+                assert attempt_started is not None
                 attempt_latency = self._clock() - attempt_started
                 if self.telemetry is not None:
                     await self.telemetry.record_provider_failure(
@@ -343,3 +370,18 @@ class LLMRouter:
                 return await invoke()
         except TimeoutError:
             raise _RequestBudgetExceeded from None
+
+    @asynccontextmanager
+    async def _provider_slot(
+        self,
+        provider_name: str,
+        remaining: float | None,
+    ) -> AsyncIterator[None]:
+        if self.concurrency_manager is None:
+            yield
+            return
+        async with self.concurrency_manager.slot(
+            provider_name,
+            timeout_seconds=remaining,
+        ):
+            yield

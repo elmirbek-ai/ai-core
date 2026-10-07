@@ -88,6 +88,16 @@ class Settings(BaseSettings):
 
     llm_telemetry_enabled: bool = True
 
+    llm_provider_concurrency_enabled: bool = True
+    llm_provider_default_max_concurrency: int = Field(default=4, ge=1)
+    llm_groq_max_concurrency: int = Field(default=4, ge=1)
+    llm_openrouter_max_concurrency: int = Field(default=2, ge=1)
+    llm_gemini_max_concurrency: int = Field(default=3, ge=1)
+    llm_cloudflare_max_concurrency: int = Field(default=3, ge=1)
+    llm_ollama_max_concurrency: int = Field(default=2, ge=1)
+    llm_kilo_max_concurrency: int = Field(default=1, ge=1)
+    llm_llm7_max_concurrency: int = Field(default=1, ge=1)
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

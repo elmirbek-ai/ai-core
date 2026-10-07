@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from app.api.chat import router as chat_router
 from app.core.config import get_settings
 from app.llm.budget import RequestBudgetPolicy
+from app.llm.concurrency import ProviderConcurrencyManager
 from app.llm.health import ProviderHealthManager
 from app.llm.model_router import TaskModelRouter
 from app.llm.registry import create_provider_registry
@@ -35,6 +36,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             multimodal_seconds=settings.llm_multimodal_budget_seconds,
         )
         telemetry = LLMTelemetry(enabled=settings.llm_telemetry_enabled)
+        concurrency_manager = ProviderConcurrencyManager(
+            enabled=settings.llm_provider_concurrency_enabled,
+            default_limit=settings.llm_provider_default_max_concurrency,
+            limits={
+                "groq": settings.llm_groq_max_concurrency,
+                "openrouter": settings.llm_openrouter_max_concurrency,
+                "gemini": settings.llm_gemini_max_concurrency,
+                "cloudflare": settings.llm_cloudflare_max_concurrency,
+                "ollama": settings.llm_ollama_max_concurrency,
+                "kilo": settings.llm_kilo_max_concurrency,
+                "llm7": settings.llm_llm7_max_concurrency,
+            },
+        )
         primary_provider = registry.require_enabled(
             settings.llm_primary_provider,
         )
@@ -50,6 +64,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.provider_health_manager = health_manager
         app.state.request_budget_policy = budget_policy
         app.state.llm_telemetry = telemetry
+        app.state.provider_concurrency_manager = concurrency_manager
         app.state.llm_service = LLMService(
             router=LLMRouter(
                 primary_provider=primary_provider,
@@ -68,6 +83,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 health_manager=health_manager,
                 budget_policy=budget_policy,
                 telemetry=telemetry,
+                concurrency_manager=concurrency_manager,
             ),
             model_router=TaskModelRouter(
                 fast_model=settings.groq_fast_model,
