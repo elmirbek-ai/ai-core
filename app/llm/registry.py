@@ -1,0 +1,87 @@
+import asyncio
+import logging
+
+from app.core.config import Settings
+from app.llm.base import BaseLLMProvider
+from app.llm.providers.cloudflare import CloudflareProvider
+from app.llm.providers.gemini import GeminiProvider
+from app.llm.providers.groq import GroqProvider
+from app.llm.providers.openrouter import OpenRouterProvider
+
+
+logger = logging.getLogger(__name__)
+
+VALID_PROVIDER_NAMES = frozenset(
+    {"groq", "openrouter", "gemini", "cloudflare"}
+)
+
+
+class ProviderRegistry:
+    def __init__(self, providers: dict[str, BaseLLMProvider]) -> None:
+        self._providers = providers
+
+    def require_enabled(self, name: str) -> BaseLLMProvider:
+        self._validate_name(name)
+        provider = self._providers.get(name)
+        if provider is None:
+            raise ValueError(
+                f"Configured primary provider '{name}' is disabled",
+            )
+        return provider
+
+    def get_enabled(self, name: str | None) -> BaseLLMProvider | None:
+        if name is None:
+            return None
+        self._validate_name(name)
+        return self._providers.get(name)
+
+    def is_enabled(self, name: str) -> bool:
+        self._validate_name(name)
+        return name in self._providers
+
+    async def close(self) -> None:
+        providers = list(self._providers.values())
+        results = await asyncio.gather(
+            *(provider.close() for provider in providers),
+            return_exceptions=True,
+        )
+        for provider, result in zip(providers, results, strict=True):
+            if isinstance(result, BaseException):
+                logger.error(
+                    "Failed to close provider %s",
+                    provider.name,
+                )
+
+    @staticmethod
+    def _validate_name(name: str) -> None:
+        if name not in VALID_PROVIDER_NAMES:
+            valid_names = ", ".join(sorted(VALID_PROVIDER_NAMES))
+            raise ValueError(
+                f"Unknown LLM provider '{name}'. Valid providers: {valid_names}",
+            )
+
+
+def create_provider_registry(settings: Settings) -> ProviderRegistry:
+    ProviderRegistry._validate_name(settings.llm_primary_provider)
+    if settings.llm_fallback_provider is not None:
+        ProviderRegistry._validate_name(settings.llm_fallback_provider)
+    if settings.llm_primary_provider == "gemini":
+        raise ValueError("Gemini cannot be configured as the generic primary")
+    if settings.llm_fallback_provider == "gemini":
+        raise ValueError("Gemini cannot be configured as the generic fallback")
+    if settings.llm_primary_provider == "cloudflare":
+        raise ValueError("Cloudflare cannot be configured as the generic primary")
+    if settings.llm_fallback_provider == "cloudflare":
+        raise ValueError("Cloudflare cannot be configured as the generic fallback")
+
+    providers: dict[str, BaseLLMProvider] = {
+        "groq": GroqProvider(settings=settings),
+    }
+    if settings.openrouter_api_key:
+        providers["openrouter"] = OpenRouterProvider(settings=settings)
+    if settings.gemini_api_key:
+        providers["gemini"] = GeminiProvider(settings=settings)
+    if settings.cloudflare_api_token and settings.cloudflare_account_id:
+        providers["cloudflare"] = CloudflareProvider(settings=settings)
+
+    return ProviderRegistry(providers)
