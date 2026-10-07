@@ -86,6 +86,8 @@ class Settings(BaseSettings):
     llm_long_context_budget_seconds: float = Field(default=90.0, gt=0)
     llm_multimodal_budget_seconds: float = Field(default=90.0, gt=0)
 
+    llm_telemetry_enabled: bool = True
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

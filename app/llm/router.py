@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import Callable
+from dataclasses import dataclass
 import logging
 import time
 from typing import Any
@@ -16,6 +17,7 @@ from app.llm.exceptions import (
 from app.llm.health import ProviderHealthManager
 from app.llm.model_router import FAST_TASKS, REASONING_TASKS
 from app.llm.task import TaskType
+from app.llm.telemetry import LLMTelemetry
 
 
 logger = logging.getLogger(__name__)
@@ -29,6 +31,12 @@ RECOVERABLE_PROVIDER_ERRORS = (
 
 class _RequestBudgetExceeded(Exception):
     pass
+
+
+@dataclass(slots=True)
+class _RequestExecutionState:
+    failed_attempts: int = 0
+    selected_provider: str | None = None
 
 
 class LLMRouter:
@@ -49,6 +57,7 @@ class LLMRouter:
         llm7_code_model: str | None = None,
         health_manager: ProviderHealthManager | None = None,
         budget_policy: RequestBudgetPolicy | None = None,
+        telemetry: LLMTelemetry | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self.primary_provider = primary_provider
@@ -66,6 +75,7 @@ class LLMRouter:
         self.llm7_code_model = llm7_code_model
         self.health_manager = health_manager
         self.budget_policy = budget_policy
+        self.telemetry = telemetry
         self._clock = clock
 
     async def chat(
@@ -74,23 +84,47 @@ class LLMRouter:
         model: str | None = None,
         task: TaskType = TaskType.GENERAL,
     ) -> dict[str, str]:
-        chain = self._provider_chain(task=task, model=model)
-        budget_seconds = (
-            self.budget_policy.resolve(task)
-            if self.budget_policy is not None
-            else None
-        )
-        deadline = (
-            self._clock() + budget_seconds
-            if budget_seconds is not None
-            else None
-        )
-        return await self._run_chain(
-            messages=messages,
-            chain=chain,
-            task=task,
-            deadline=deadline,
-        )
+        request_started = self._clock()
+        execution = _RequestExecutionState()
+        try:
+            chain = self._provider_chain(task=task, model=model)
+            budget_seconds = (
+                self.budget_policy.resolve(task)
+                if self.budget_policy is not None
+                else None
+            )
+            deadline = (
+                request_started + budget_seconds
+                if budget_seconds is not None
+                else None
+            )
+            result = await self._run_chain(
+                messages=messages,
+                chain=chain,
+                task=task,
+                deadline=deadline,
+                execution=execution,
+            )
+        except Exception as error:
+            if self.telemetry is not None:
+                await self.telemetry.record_request_failure(
+                    task=task,
+                    error=error,
+                    latency_seconds=self._clock() - request_started,
+                    fallback_depth=execution.failed_attempts,
+                )
+            raise
+
+        if self.telemetry is not None:
+            await self.telemetry.record_request_success(
+                task=task,
+                selected_provider=(
+                    execution.selected_provider or result["provider"]
+                ),
+                latency_seconds=self._clock() - request_started,
+                fallback_depth=execution.failed_attempts,
+            )
+        return result
 
     def _provider_chain(
         self,
@@ -146,6 +180,7 @@ class LLMRouter:
         chain: list[tuple[BaseLLMProvider | None, str | None]],
         task: TaskType,
         deadline: float | None,
+        execution: _RequestExecutionState,
     ) -> dict[str, str]:
         provider_calls: list[tuple[BaseLLMProvider, str | None]] = []
         seen_provider_ids: set[int] = set()
@@ -155,23 +190,22 @@ class LLMRouter:
             seen_provider_ids.add(id(provider))
             provider_calls.append((provider, provider_model))
 
-        if self.health_manager is not None:
-            available_calls: list[
-                tuple[BaseLLMProvider, str | None]
-            ] = []
-            for provider, provider_model in provider_calls:
-                if await self.health_manager.is_available(provider.name):
-                    available_calls.append((provider, provider_model))
-                else:
-                    logger.warning(
-                        "Provider %s skipped because circuit open",
-                        provider.name,
-                    )
-            provider_calls = available_calls
-
         recoverable_failures = 0
+        last_recoverable_error: Exception | None = None
 
         for index, (provider, provider_model) in enumerate(provider_calls):
+            if (
+                self.health_manager is not None
+                and not await self.health_manager.is_available(provider.name)
+            ):
+                if self.telemetry is not None:
+                    await self.telemetry.record_circuit_skip(provider.name)
+                logger.warning(
+                    "Provider %s skipped because circuit open",
+                    provider.name,
+                )
+                continue
+
             remaining = None
             if deadline is not None:
                 remaining = deadline - self._clock()
@@ -188,6 +222,7 @@ class LLMRouter:
                     provider.name,
                     task.value,
                 )
+            attempt_started = self._clock()
             try:
                 result = await self._call_provider(
                     provider=provider,
@@ -195,10 +230,18 @@ class LLMRouter:
                     messages=messages,
                     remaining=remaining,
                 )
+                attempt_latency = self._clock() - attempt_started
+                if self.telemetry is not None:
+                    await self.telemetry.record_provider_success(
+                        provider_name=provider.name,
+                        latency_seconds=attempt_latency,
+                    )
                 if self.health_manager is not None:
                     await self.health_manager.record_success(provider.name)
+                execution.selected_provider = provider.name
                 return result
             except _RequestBudgetExceeded:
+                attempt_latency = self._clock() - attempt_started
                 timeout_error = LLMTimeoutError(
                     "LLM request budget exhausted",
                 )
@@ -207,34 +250,77 @@ class LLMRouter:
                         provider.name,
                         timeout_error,
                     )
+                if self.telemetry is not None:
+                    await self.telemetry.record_provider_failure(
+                        provider_name=provider.name,
+                        error=timeout_error,
+                        latency_seconds=attempt_latency,
+                    )
+                execution.failed_attempts += 1
                 logger.warning(
                     "Request budget exhausted for task %s while calling provider %s",
                     task.value,
                     provider.name,
                 )
                 raise timeout_error from None
-            except LLMAuthenticationError:
+            except LLMAuthenticationError as error:
+                attempt_latency = self._clock() - attempt_started
+                if self.telemetry is not None:
+                    await self.telemetry.record_provider_failure(
+                        provider_name=provider.name,
+                        error=error,
+                        latency_seconds=attempt_latency,
+                    )
+                execution.failed_attempts += 1
                 raise
             except RECOVERABLE_PROVIDER_ERRORS as error:
+                attempt_latency = self._clock() - attempt_started
                 if self.health_manager is not None:
                     await self.health_manager.record_failure(
                         provider.name,
                         error,
                     )
+                if self.telemetry is not None:
+                    await self.telemetry.record_provider_failure(
+                        provider_name=provider.name,
+                        error=error,
+                        latency_seconds=attempt_latency,
+                    )
+                execution.failed_attempts += 1
                 recoverable_failures += 1
-                if index == len(provider_calls) - 1:
-                    if recoverable_failures == 1:
-                        raise
-                    raise LLMProviderError(
-                        "All task providers failed",
-                    ) from None
+                last_recoverable_error = error
+                if index < len(provider_calls) - 1:
+                    next_provider = provider_calls[index + 1][0]
+                    logger.warning(
+                        "Provider %s failed, falling back to provider %s",
+                        provider.name,
+                        next_provider.name,
+                    )
+            except LLMProviderError as error:
+                attempt_latency = self._clock() - attempt_started
+                if self.telemetry is not None:
+                    await self.telemetry.record_provider_failure(
+                        provider_name=provider.name,
+                        error=error,
+                        latency_seconds=attempt_latency,
+                    )
+                execution.failed_attempts += 1
+                raise
+            except Exception as error:
+                attempt_latency = self._clock() - attempt_started
+                if self.telemetry is not None:
+                    await self.telemetry.record_provider_failure(
+                        provider_name=provider.name,
+                        error=error,
+                        latency_seconds=attempt_latency,
+                    )
+                execution.failed_attempts += 1
+                raise
 
-                next_provider = provider_calls[index + 1][0]
-                logger.warning(
-                    "Provider %s failed, falling back to provider %s",
-                    provider.name,
-                    next_provider.name,
-                )
+        if last_recoverable_error is not None:
+            if recoverable_failures == 1:
+                raise last_recoverable_error
+            raise LLMProviderError("All task providers failed") from None
 
         raise LLMProviderError("No provider is available for task")
 

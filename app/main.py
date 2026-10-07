@@ -10,6 +10,7 @@ from app.llm.health import ProviderHealthManager
 from app.llm.model_router import TaskModelRouter
 from app.llm.registry import create_provider_registry
 from app.llm.router import LLMRouter
+from app.llm.telemetry import LLMTelemetry
 from app.services.llm_service import LLMService
 
 
@@ -33,6 +34,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             long_context_seconds=settings.llm_long_context_budget_seconds,
             multimodal_seconds=settings.llm_multimodal_budget_seconds,
         )
+        telemetry = LLMTelemetry(enabled=settings.llm_telemetry_enabled)
         primary_provider = registry.require_enabled(
             settings.llm_primary_provider,
         )
@@ -47,6 +49,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.provider_registry = registry
         app.state.provider_health_manager = health_manager
         app.state.request_budget_policy = budget_policy
+        app.state.llm_telemetry = telemetry
         app.state.llm_service = LLMService(
             router=LLMRouter(
                 primary_provider=primary_provider,
@@ -64,6 +67,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 llm7_code_model=settings.llm7_code_model,
                 health_manager=health_manager,
                 budget_policy=budget_policy,
+                telemetry=telemetry,
             ),
             model_router=TaskModelRouter(
                 fast_model=settings.groq_fast_model,
