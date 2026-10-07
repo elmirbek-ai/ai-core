@@ -127,8 +127,11 @@ def test_lifespan_shares_health_manager_with_router() -> None:
     with TestClient(app):
         manager = app.state.provider_health_manager
         router_manager = app.state.llm_service.router.health_manager
+        budget_policy = app.state.request_budget_policy
+        router_budget_policy = app.state.llm_service.router.budget_policy
 
         assert router_manager is manager
+        assert router_budget_policy is budget_policy
 
 
 @pytest.mark.parametrize(

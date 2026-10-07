@@ -79,6 +79,13 @@ class Settings(BaseSettings):
     llm_circuit_failure_threshold: int = Field(default=3, ge=1)
     llm_circuit_cooldown_seconds: float = Field(default=60.0, ge=0)
 
+    llm_request_budget_enabled: bool = True
+    llm_standard_budget_seconds: float = Field(default=30.0, gt=0)
+    llm_reasoning_budget_seconds: float = Field(default=60.0, gt=0)
+    llm_code_budget_seconds: float = Field(default=60.0, gt=0)
+    llm_long_context_budget_seconds: float = Field(default=90.0, gt=0)
+    llm_multimodal_budget_seconds: float = Field(default=90.0, gt=0)
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

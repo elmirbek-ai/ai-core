@@ -5,8 +5,9 @@ from fastapi import FastAPI
 
 from app.api.chat import router as chat_router
 from app.core.config import get_settings
-from app.llm.model_router import TaskModelRouter
+from app.llm.budget import RequestBudgetPolicy
 from app.llm.health import ProviderHealthManager
+from app.llm.model_router import TaskModelRouter
 from app.llm.registry import create_provider_registry
 from app.llm.router import LLMRouter
 from app.services.llm_service import LLMService
@@ -24,6 +25,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             failure_threshold=settings.llm_circuit_failure_threshold,
             cooldown_seconds=settings.llm_circuit_cooldown_seconds,
         )
+        budget_policy = RequestBudgetPolicy(
+            enabled=settings.llm_request_budget_enabled,
+            standard_seconds=settings.llm_standard_budget_seconds,
+            reasoning_seconds=settings.llm_reasoning_budget_seconds,
+            code_seconds=settings.llm_code_budget_seconds,
+            long_context_seconds=settings.llm_long_context_budget_seconds,
+            multimodal_seconds=settings.llm_multimodal_budget_seconds,
+        )
         primary_provider = registry.require_enabled(
             settings.llm_primary_provider,
         )
@@ -37,6 +46,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         llm7_provider = registry.get_enabled("llm7")
         app.state.provider_registry = registry
         app.state.provider_health_manager = health_manager
+        app.state.request_budget_policy = budget_policy
         app.state.llm_service = LLMService(
             router=LLMRouter(
                 primary_provider=primary_provider,
@@ -53,6 +63,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 llm7_reasoning_model=settings.llm7_reasoning_model,
                 llm7_code_model=settings.llm7_code_model,
                 health_manager=health_manager,
+                budget_policy=budget_policy,
             ),
             model_router=TaskModelRouter(
                 fast_model=settings.groq_fast_model,

@@ -1,7 +1,11 @@
+import asyncio
+from collections.abc import Callable
 import logging
+import time
 from typing import Any
 
 from app.llm.base import BaseLLMProvider
+from app.llm.budget import RequestBudgetPolicy
 from app.llm.exceptions import (
     LLMAuthenticationError,
     LLMProviderError,
@@ -23,6 +27,10 @@ RECOVERABLE_PROVIDER_ERRORS = (
 )
 
 
+class _RequestBudgetExceeded(Exception):
+    pass
+
+
 class LLMRouter:
     def __init__(
         self,
@@ -40,6 +48,8 @@ class LLMRouter:
         llm7_reasoning_model: str | None = None,
         llm7_code_model: str | None = None,
         health_manager: ProviderHealthManager | None = None,
+        budget_policy: RequestBudgetPolicy | None = None,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self.primary_provider = primary_provider
         self.fallback_provider = fallback_provider
@@ -55,6 +65,8 @@ class LLMRouter:
         self.llm7_reasoning_model = llm7_reasoning_model
         self.llm7_code_model = llm7_code_model
         self.health_manager = health_manager
+        self.budget_policy = budget_policy
+        self._clock = clock
 
     async def chat(
         self,
@@ -63,7 +75,22 @@ class LLMRouter:
         task: TaskType = TaskType.GENERAL,
     ) -> dict[str, str]:
         chain = self._provider_chain(task=task, model=model)
-        return await self._run_chain(messages=messages, chain=chain)
+        budget_seconds = (
+            self.budget_policy.resolve(task)
+            if self.budget_policy is not None
+            else None
+        )
+        deadline = (
+            self._clock() + budget_seconds
+            if budget_seconds is not None
+            else None
+        )
+        return await self._run_chain(
+            messages=messages,
+            chain=chain,
+            task=task,
+            deadline=deadline,
+        )
 
     def _provider_chain(
         self,
@@ -117,6 +144,8 @@ class LLMRouter:
         self,
         messages: list[dict[str, Any]],
         chain: list[tuple[BaseLLMProvider | None, str | None]],
+        task: TaskType,
+        deadline: float | None,
     ) -> dict[str, str]:
         provider_calls: list[tuple[BaseLLMProvider, str | None]] = []
         seen_provider_ids: set[int] = set()
@@ -143,17 +172,47 @@ class LLMRouter:
         recoverable_failures = 0
 
         for index, (provider, provider_model) in enumerate(provider_calls):
-            try:
-                if provider_model is None:
-                    result = await provider.chat(messages)
-                else:
-                    result = await provider.chat(
-                        messages,
-                        model=provider_model,
+            remaining = None
+            if deadline is not None:
+                remaining = deadline - self._clock()
+                if remaining <= 0:
+                    logger.warning(
+                        "Request budget exhausted for task %s",
+                        task.value,
                     )
+                    raise LLMTimeoutError(
+                        "LLM request budget exhausted",
+                    ) from None
+                logger.debug(
+                    "Provider %s attempt limited by remaining budget for task %s",
+                    provider.name,
+                    task.value,
+                )
+            try:
+                result = await self._call_provider(
+                    provider=provider,
+                    provider_model=provider_model,
+                    messages=messages,
+                    remaining=remaining,
+                )
                 if self.health_manager is not None:
                     await self.health_manager.record_success(provider.name)
                 return result
+            except _RequestBudgetExceeded:
+                timeout_error = LLMTimeoutError(
+                    "LLM request budget exhausted",
+                )
+                if self.health_manager is not None:
+                    await self.health_manager.record_failure(
+                        provider.name,
+                        timeout_error,
+                    )
+                logger.warning(
+                    "Request budget exhausted for task %s while calling provider %s",
+                    task.value,
+                    provider.name,
+                )
+                raise timeout_error from None
             except LLMAuthenticationError:
                 raise
             except RECOVERABLE_PROVIDER_ERRORS as error:
@@ -178,3 +237,23 @@ class LLMRouter:
                 )
 
         raise LLMProviderError("No provider is available for task")
+
+    async def _call_provider(
+        self,
+        provider: BaseLLMProvider,
+        provider_model: str | None,
+        messages: list[dict[str, Any]],
+        remaining: float | None,
+    ) -> dict[str, str]:
+        async def invoke() -> dict[str, str]:
+            if provider_model is None:
+                return await provider.chat(messages)
+            return await provider.chat(messages, model=provider_model)
+
+        if remaining is None:
+            return await invoke()
+        try:
+            async with asyncio.timeout(remaining):
+                return await invoke()
+        except TimeoutError:
+            raise _RequestBudgetExceeded from None
