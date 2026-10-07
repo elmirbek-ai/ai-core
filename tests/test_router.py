@@ -45,6 +45,14 @@ KILO_RESULT = {
 KILO_GENERAL_MODEL = "stepfun/step-3.7-flash:free"
 KILO_CODE_MODEL = "cohere/north-mini-code:free"
 KILO_LONG_MODEL = "dots-studio/dots-3-note-preview:free"
+LLM7_RESULT = {
+    "provider": "llm7",
+    "model": "GLM-5.3-Flash",
+    "content": "llm7 response",
+}
+LLM7_GENERAL_MODEL = "GLM-5.3-Flash"
+LLM7_REASONING_MODEL = "gpt-oss:20b"
+LLM7_CODE_MODEL = "gpt-oss:20b"
 
 
 def provider(name: str, *, result=None, error=None):
@@ -894,3 +902,136 @@ def test_disabled_kilo_is_skipped_in_standard_chain() -> None:
     result = asyncio.run(router.chat(MESSAGES, task=TaskType.GENERAL))
 
     assert result == OLLAMA_RESULT
+
+
+def test_standard_chain_reaches_llm7_after_kilo() -> None:
+    groq = provider("groq", error=LLMTimeoutError("failed"))
+    openrouter = provider("openrouter", error=LLMUpstreamError("failed"))
+    cloudflare = provider("cloudflare", error=LLMRateLimitError("failed"))
+    ollama = provider("ollama", error=LLMTimeoutError("failed"))
+    kilo = provider("kilo", error=LLMUpstreamError("failed"))
+    llm7 = provider("llm7", result=LLM7_RESULT)
+    router = LLMRouter(
+        primary_provider=groq,
+        fallback_provider=openrouter,
+        cloudflare_provider=cloudflare,
+        ollama_provider=ollama,
+        kilo_provider=kilo,
+        kilo_general_model=KILO_GENERAL_MODEL,
+        llm7_provider=llm7,
+        llm7_general_model=LLM7_GENERAL_MODEL,
+    )
+
+    result = asyncio.run(router.chat(MESSAGES, task=TaskType.GENERAL))
+
+    assert result == LLM7_RESULT
+    kilo.chat.assert_awaited_once_with(MESSAGES, model=KILO_GENERAL_MODEL)
+    llm7.chat.assert_awaited_once_with(MESSAGES, model=LLM7_GENERAL_MODEL)
+
+
+def test_reasoning_chain_reaches_llm7_last() -> None:
+    groq = provider("groq", error=LLMTimeoutError("failed"))
+    cloudflare = provider("cloudflare", error=LLMUpstreamError("failed"))
+    ollama = provider("ollama", error=LLMRateLimitError("failed"))
+    openrouter = provider("openrouter", error=LLMTimeoutError("failed"))
+    llm7_result = {**LLM7_RESULT, "model": LLM7_REASONING_MODEL}
+    llm7 = provider("llm7", result=llm7_result)
+    router = LLMRouter(
+        primary_provider=groq,
+        fallback_provider=openrouter,
+        cloudflare_provider=cloudflare,
+        ollama_provider=ollama,
+        llm7_provider=llm7,
+        llm7_reasoning_model=LLM7_REASONING_MODEL,
+    )
+
+    result = asyncio.run(router.chat(MESSAGES, task=TaskType.REASONING))
+
+    assert result == llm7_result
+    llm7.chat.assert_awaited_once_with(
+        MESSAGES,
+        model=LLM7_REASONING_MODEL,
+    )
+
+
+def test_code_chain_reaches_llm7_after_kilo() -> None:
+    groq = provider("groq", error=LLMTimeoutError("failed"))
+    cloudflare = provider("cloudflare", error=LLMUpstreamError("failed"))
+    ollama = provider("ollama", error=LLMRateLimitError("failed"))
+    openrouter = provider("openrouter", error=LLMTimeoutError("failed"))
+    kilo = provider("kilo", error=LLMUpstreamError("failed"))
+    llm7_result = {**LLM7_RESULT, "model": LLM7_CODE_MODEL}
+    llm7 = provider("llm7", result=llm7_result)
+    router = LLMRouter(
+        primary_provider=groq,
+        fallback_provider=openrouter,
+        cloudflare_provider=cloudflare,
+        ollama_provider=ollama,
+        kilo_provider=kilo,
+        kilo_code_model=KILO_CODE_MODEL,
+        llm7_provider=llm7,
+        llm7_code_model=LLM7_CODE_MODEL,
+    )
+
+    result = asyncio.run(router.chat(MESSAGES, task=TaskType.CODE))
+
+    assert result == llm7_result
+    kilo.chat.assert_awaited_once_with(MESSAGES, model=KILO_CODE_MODEL)
+    llm7.chat.assert_awaited_once_with(MESSAGES, model=LLM7_CODE_MODEL)
+
+
+@pytest.mark.parametrize(
+    "task",
+    [TaskType.LONG_CONTEXT, TaskType.MULTIMODAL],
+)
+def test_llm7_is_not_used_for_unsupported_tasks(task: TaskType) -> None:
+    groq = provider("groq", result=GROQ_RESULT)
+    llm7 = provider("llm7", result=LLM7_RESULT)
+    router = LLMRouter(
+        primary_provider=groq,
+        llm7_provider=llm7,
+        llm7_general_model=LLM7_GENERAL_MODEL,
+        llm7_reasoning_model=LLM7_REASONING_MODEL,
+        llm7_code_model=LLM7_CODE_MODEL,
+    )
+
+    result = asyncio.run(router.chat(MESSAGES, task=task))
+
+    assert result == GROQ_RESULT
+    llm7.chat.assert_not_awaited()
+
+
+def test_disabled_llm7_is_skipped_without_changing_kilo_result() -> None:
+    groq = provider("groq", error=LLMTimeoutError("failed"))
+    openrouter = provider("openrouter", error=LLMUpstreamError("failed"))
+    cloudflare = provider("cloudflare", error=LLMRateLimitError("failed"))
+    ollama = provider("ollama", error=LLMTimeoutError("failed"))
+    kilo = provider("kilo", result=KILO_RESULT)
+    router = LLMRouter(
+        primary_provider=groq,
+        fallback_provider=openrouter,
+        cloudflare_provider=cloudflare,
+        ollama_provider=ollama,
+        kilo_provider=kilo,
+        kilo_general_model=KILO_GENERAL_MODEL,
+        llm7_provider=None,
+    )
+
+    result = asyncio.run(router.chat(MESSAGES, task=TaskType.GENERAL))
+
+    assert result == KILO_RESULT
+
+
+def test_llm7_recoverable_failure_uses_existing_terminal_semantics() -> None:
+    groq = provider("groq", error=LLMTimeoutError("failed"))
+    llm7 = provider("llm7", error=LLMUpstreamError("failed"))
+    router = LLMRouter(
+        primary_provider=groq,
+        llm7_provider=llm7,
+        llm7_general_model=LLM7_GENERAL_MODEL,
+    )
+
+    with pytest.raises(LLMProviderError, match="All task providers failed"):
+        asyncio.run(router.chat(MESSAGES, task=TaskType.GENERAL))
+
+    llm7.chat.assert_awaited_once_with(MESSAGES, model=LLM7_GENERAL_MODEL)

@@ -34,6 +34,10 @@ class LLMRouter:
         kilo_general_model: str | None = None,
         kilo_code_model: str | None = None,
         kilo_long_context_model: str | None = None,
+        llm7_provider: BaseLLMProvider | None = None,
+        llm7_general_model: str | None = None,
+        llm7_reasoning_model: str | None = None,
+        llm7_code_model: str | None = None,
     ) -> None:
         self.primary_provider = primary_provider
         self.fallback_provider = fallback_provider
@@ -44,6 +48,10 @@ class LLMRouter:
         self.kilo_general_model = kilo_general_model
         self.kilo_code_model = kilo_code_model
         self.kilo_long_context_model = kilo_long_context_model
+        self.llm7_provider = llm7_provider
+        self.llm7_general_model = llm7_general_model
+        self.llm7_reasoning_model = llm7_reasoning_model
+        self.llm7_code_model = llm7_code_model
 
     async def chat(
         self,
@@ -81,6 +89,7 @@ class LLMRouter:
                 (self.ollama_provider, None),
                 (self.fallback_provider, None),
                 (self.kilo_provider, self.kilo_code_model),
+                (self.llm7_provider, self.llm7_code_model),
             ]
         if task in REASONING_TASKS:
             return [
@@ -88,6 +97,7 @@ class LLMRouter:
                 (self.cloudflare_provider, None),
                 (self.ollama_provider, None),
                 (self.fallback_provider, None),
+                (self.llm7_provider, self.llm7_reasoning_model),
             ]
         if task in FAST_TASKS:
             return [
@@ -96,6 +106,7 @@ class LLMRouter:
                 (self.cloudflare_provider, None),
                 (self.ollama_provider, None),
                 (self.kilo_provider, self.kilo_general_model),
+                (self.llm7_provider, self.llm7_general_model),
             ]
         raise ValueError(f"Unsupported task type: {task}")
 

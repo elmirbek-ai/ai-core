@@ -7,6 +7,7 @@ from app.llm.providers.cloudflare import CloudflareProvider
 from app.llm.providers.gemini import GeminiProvider
 from app.llm.providers.groq import GroqProvider
 from app.llm.providers.kilo import KiloProvider
+from app.llm.providers.llm7 import LLM7Provider
 from app.llm.providers.openrouter import OpenRouterProvider
 from app.llm.providers.ollama import OllamaProvider
 
@@ -14,7 +15,15 @@ from app.llm.providers.ollama import OllamaProvider
 logger = logging.getLogger(__name__)
 
 VALID_PROVIDER_NAMES = frozenset(
-    {"groq", "openrouter", "gemini", "cloudflare", "ollama", "kilo"}
+    {
+        "groq",
+        "openrouter",
+        "gemini",
+        "cloudflare",
+        "ollama",
+        "kilo",
+        "llm7",
+    }
 )
 
 
@@ -83,6 +92,10 @@ async def create_provider_registry(settings: Settings) -> ProviderRegistry:
         raise ValueError("Kilo cannot be configured as the generic primary")
     if settings.llm_fallback_provider == "kilo":
         raise ValueError("Kilo cannot be configured as the generic fallback")
+    if settings.llm_primary_provider == "llm7":
+        raise ValueError("LLM7 cannot be configured as the generic primary")
+    if settings.llm_fallback_provider == "llm7":
+        raise ValueError("LLM7 cannot be configured as the generic fallback")
 
     providers: dict[str, BaseLLMProvider] = {}
     try:
@@ -97,6 +110,8 @@ async def create_provider_registry(settings: Settings) -> ProviderRegistry:
             providers["ollama"] = OllamaProvider(settings=settings)
         if settings.kilo_enabled:
             providers["kilo"] = KiloProvider(settings=settings)
+        if settings.llm7_enabled and settings.llm7_api_key:
+            providers["llm7"] = LLM7Provider(settings=settings)
     except Exception:
         await ProviderRegistry(providers).close()
         raise

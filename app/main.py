@@ -28,6 +28,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         cloudflare_provider = registry.get_enabled("cloudflare")
         ollama_provider = registry.get_enabled("ollama")
         kilo_provider = registry.get_enabled("kilo")
+        llm7_provider = registry.get_enabled("llm7")
         app.state.provider_registry = registry
         app.state.llm_service = LLMService(
             router=LLMRouter(
@@ -40,6 +41,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 kilo_general_model=settings.kilo_general_model,
                 kilo_code_model=settings.kilo_code_model,
                 kilo_long_context_model=settings.kilo_long_context_model,
+                llm7_provider=llm7_provider,
+                llm7_general_model=settings.llm7_general_model,
+                llm7_reasoning_model=settings.llm7_reasoning_model,
+                llm7_code_model=settings.llm7_code_model,
             ),
             model_router=TaskModelRouter(
                 fast_model=settings.groq_fast_model,

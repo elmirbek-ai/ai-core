@@ -9,6 +9,7 @@ from app.llm.exceptions import LLMProviderError
 from app.llm.providers.cloudflare import CloudflareProvider
 from app.llm.providers.gemini import GeminiProvider
 from app.llm.providers.groq import GroqProvider
+from app.llm.providers.llm7 import LLM7Provider
 from app.llm.providers.openrouter import OpenRouterProvider
 
 
@@ -19,6 +20,7 @@ from app.llm.providers.openrouter import OpenRouterProvider
         OpenRouterProvider,
         GeminiProvider,
         CloudflareProvider,
+        LLM7Provider,
     ],
 )
 def test_provider_uses_sanitized_shared_error_mapping(provider_type) -> None:
@@ -40,6 +42,8 @@ def test_provider_uses_sanitized_shared_error_mapping(provider_type) -> None:
         gemini_api_key="gemini-test-key",
         cloudflare_api_token="cloudflare-test-token",
         cloudflare_account_id="test-account-id",
+        llm7_enabled=True,
+        llm7_api_key="llm7-test-key",
     )
     provider = provider_type(settings=settings, client=client)
 

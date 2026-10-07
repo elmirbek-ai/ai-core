@@ -66,6 +66,15 @@ class Settings(BaseSettings):
     kilo_timeout_seconds: float = Field(default=60.0, gt=0)
     kilo_max_retries: int = Field(default=1, ge=0)
 
+    llm7_enabled: bool = False
+    llm7_api_key: str | None = None
+    llm7_base_url: str = Field(default="https://api.llm7.io/v1", min_length=1)
+    llm7_general_model: str = Field(default="GLM-5.3-Flash", min_length=1)
+    llm7_reasoning_model: str = Field(default="gpt-oss:20b", min_length=1)
+    llm7_code_model: str = Field(default="gpt-oss:20b", min_length=1)
+    llm7_timeout_seconds: float = Field(default=60.0, gt=0)
+    llm7_max_retries: int = Field(default=1, ge=0)
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -93,6 +102,7 @@ class Settings(BaseSettings):
         "cloudflare_api_token",
         "cloudflare_account_id",
         "ollama_api_key",
+        "llm7_api_key",
         mode="before",
     )
     @classmethod
@@ -107,6 +117,10 @@ class Settings(BaseSettings):
         "kilo_general_model",
         "kilo_code_model",
         "kilo_long_context_model",
+        "llm7_base_url",
+        "llm7_general_model",
+        "llm7_reasoning_model",
+        "llm7_code_model",
         mode="before",
     )
     @classmethod

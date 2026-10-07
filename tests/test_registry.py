@@ -225,6 +225,67 @@ def test_kilo_is_enabled_only_with_explicit_opt_in(monkeypatch) -> None:
     assert registry.get_enabled("kilo") is kilo
 
 
+def test_llm7_is_disabled_by_default(monkeypatch) -> None:
+    groq = SimpleNamespace(name="groq", close=AsyncMock())
+    llm7_type = AsyncMock()
+    monkeypatch.setattr(
+        "app.llm.registry.GroqProvider",
+        lambda settings: groq,
+    )
+    monkeypatch.setattr("app.llm.registry.LLM7Provider", llm7_type)
+    settings = Settings(_env_file=None, groq_api_key="test-key")
+
+    registry = asyncio.run(create_provider_registry(settings))
+
+    assert not registry.is_enabled("llm7")
+    llm7_type.assert_not_called()
+
+
+def test_llm7_is_enabled_with_opt_in_and_key(monkeypatch) -> None:
+    groq = SimpleNamespace(name="groq", close=AsyncMock())
+    llm7 = SimpleNamespace(name="llm7", close=AsyncMock())
+    monkeypatch.setattr(
+        "app.llm.registry.GroqProvider",
+        lambda settings: groq,
+    )
+    monkeypatch.setattr(
+        "app.llm.registry.LLM7Provider",
+        lambda settings: llm7,
+    )
+    settings = Settings(
+        _env_file=None,
+        groq_api_key="test-key",
+        llm7_enabled=True,
+        llm7_api_key="llm7-test-key",
+    )
+
+    registry = asyncio.run(create_provider_registry(settings))
+
+    assert registry.is_enabled("llm7")
+    assert registry.get_enabled("llm7") is llm7
+
+
+def test_llm7_opt_in_without_key_remains_disabled(monkeypatch) -> None:
+    groq = SimpleNamespace(name="groq", close=AsyncMock())
+    llm7_type = AsyncMock()
+    monkeypatch.setattr(
+        "app.llm.registry.GroqProvider",
+        lambda settings: groq,
+    )
+    monkeypatch.setattr("app.llm.registry.LLM7Provider", llm7_type)
+    settings = Settings(
+        _env_file=None,
+        groq_api_key="test-key",
+        llm7_enabled=True,
+        llm7_api_key="  ",
+    )
+
+    registry = asyncio.run(create_provider_registry(settings))
+
+    assert not registry.is_enabled("llm7")
+    llm7_type.assert_not_called()
+
+
 def test_registry_closes_all_enabled_providers() -> None:
     groq = SimpleNamespace(name="groq", close=AsyncMock())
     openrouter = SimpleNamespace(name="openrouter", close=AsyncMock())
@@ -232,6 +293,7 @@ def test_registry_closes_all_enabled_providers() -> None:
     cloudflare = SimpleNamespace(name="cloudflare", close=AsyncMock())
     ollama = SimpleNamespace(name="ollama", close=AsyncMock())
     kilo = SimpleNamespace(name="kilo", close=AsyncMock())
+    llm7 = SimpleNamespace(name="llm7", close=AsyncMock())
     registry = ProviderRegistry(
         {
             "groq": groq,
@@ -240,6 +302,7 @@ def test_registry_closes_all_enabled_providers() -> None:
             "cloudflare": cloudflare,
             "ollama": ollama,
             "kilo": kilo,
+            "llm7": llm7,
         },
     )
 
@@ -251,6 +314,7 @@ def test_registry_closes_all_enabled_providers() -> None:
     cloudflare.close.assert_awaited_once()
     ollama.close.assert_awaited_once()
     kilo.close.assert_awaited_once()
+    llm7.close.assert_awaited_once()
 
 
 def test_partial_registry_startup_failure_closes_created_providers(
@@ -298,6 +362,32 @@ def test_kilo_startup_failure_closes_previously_created_providers(
         _env_file=None,
         groq_api_key="test-key",
         kilo_enabled=True,
+    )
+
+    with pytest.raises(RuntimeError, match="constructor failed"):
+        asyncio.run(create_provider_registry(settings))
+
+    groq.close.assert_awaited_once()
+
+
+def test_llm7_startup_failure_closes_previously_created_providers(
+    monkeypatch,
+) -> None:
+    groq = SimpleNamespace(name="groq", close=AsyncMock())
+    monkeypatch.setattr(
+        "app.llm.registry.GroqProvider",
+        lambda settings: groq,
+    )
+
+    def fail_llm7(settings):
+        raise RuntimeError("constructor failed")
+
+    monkeypatch.setattr("app.llm.registry.LLM7Provider", fail_llm7)
+    settings = Settings(
+        _env_file=None,
+        groq_api_key="test-key",
+        llm7_enabled=True,
+        llm7_api_key="llm7-test-key",
     )
 
     with pytest.raises(RuntimeError, match="constructor failed"):
