@@ -10,6 +10,10 @@ class Settings(BaseSettings):
 
     ai_core_auth_enabled: bool = True
     ai_core_api_key: SecretStr | None = None
+    ai_core_rate_limit_enabled: bool = True
+    ai_core_requests_per_minute: int = Field(default=60, ge=1)
+    ai_core_burst_size: int = Field(default=10, ge=1)
+    ai_core_max_streams: int = Field(default=4, ge=1)
 
     groq_api_key: str
     groq_base_url: str = "https://api.groq.com/openai/v1"

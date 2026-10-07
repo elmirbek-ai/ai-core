@@ -8,7 +8,7 @@ from typing import NoReturn
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 
-from app.core.auth import verify_api_key
+from app.core.rate_limit import enforce_api_rate_limit, enforce_stream_rate_limit
 from app.llm.exceptions import (
     LLMAuthenticationError,
     LLMProviderError,
@@ -25,7 +25,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(
     prefix="/v1",
     tags=["AI"],
-    dependencies=[Depends(verify_api_key)],
 )
 
 
@@ -65,6 +64,7 @@ def raise_provider_http_error(
 @router.post(
     "/chat",
     response_model=ChatResponse,
+    dependencies=[Depends(enforce_api_rate_limit)],
 )
 async def chat(
     request: ChatRequest,
@@ -90,7 +90,10 @@ async def chat(
         raise_provider_http_error(status.HTTP_502_BAD_GATEWAY, exc)
 
 
-@router.post("/chat/stream")
+@router.post(
+    "/chat/stream",
+    dependencies=[Depends(enforce_stream_rate_limit, scope="request")],
+)
 async def stream_chat(
     request: ChatRequest,
     llm_service: LLMService = Depends(get_llm_service),

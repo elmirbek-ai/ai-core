@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import secrets
+from dataclasses import dataclass
 from typing import Annotated, NoReturn
 
 from fastapi import FastAPI, HTTPException, Request, Security, status
@@ -12,6 +13,11 @@ from app.core.config import Settings
 
 class AIClientAuthConfigurationError(RuntimeError):
     """Raised when client API authentication cannot be enabled safely."""
+
+
+@dataclass(frozen=True, slots=True)
+class AuthContext:
+    client_id: str
 
 
 bearer_scheme = HTTPBearer(
@@ -48,9 +54,9 @@ async def verify_api_key(
         HTTPAuthorizationCredentials | None,
         Security(bearer_scheme),
     ],
-) -> None:
+) -> AuthContext:
     if not request.app.state.ai_core_auth_enabled:
-        return
+        return AuthContext(client_id="default")
 
     configured_key: SecretStr | None = request.app.state.ai_core_api_key
     if configured_key is None or credentials is None:
@@ -62,3 +68,4 @@ async def verify_api_key(
         configured_key.get_secret_value(),
     ):
         _unauthorized()
+    return AuthContext(client_id="default")
