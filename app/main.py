@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from app.api.chat import router as chat_router
 from app.core.config import get_settings
 from app.llm.model_router import TaskModelRouter
+from app.llm.health import ProviderHealthManager
 from app.llm.registry import create_provider_registry
 from app.llm.router import LLMRouter
 from app.services.llm_service import LLMService
@@ -18,6 +19,11 @@ settings = get_settings()
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     registry = await create_provider_registry(settings)
     try:
+        health_manager = ProviderHealthManager(
+            enabled=settings.llm_circuit_breaker_enabled,
+            failure_threshold=settings.llm_circuit_failure_threshold,
+            cooldown_seconds=settings.llm_circuit_cooldown_seconds,
+        )
         primary_provider = registry.require_enabled(
             settings.llm_primary_provider,
         )
@@ -30,6 +36,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         kilo_provider = registry.get_enabled("kilo")
         llm7_provider = registry.get_enabled("llm7")
         app.state.provider_registry = registry
+        app.state.provider_health_manager = health_manager
         app.state.llm_service = LLMService(
             router=LLMRouter(
                 primary_provider=primary_provider,
@@ -45,6 +52,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 llm7_general_model=settings.llm7_general_model,
                 llm7_reasoning_model=settings.llm7_reasoning_model,
                 llm7_code_model=settings.llm7_code_model,
+                health_manager=health_manager,
             ),
             model_router=TaskModelRouter(
                 fast_model=settings.groq_fast_model,

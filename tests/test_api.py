@@ -123,6 +123,14 @@ def test_lifespan_closes_provider(monkeypatch) -> None:
     close.assert_awaited_once()
 
 
+def test_lifespan_shares_health_manager_with_router() -> None:
+    with TestClient(app):
+        manager = app.state.provider_health_manager
+        router_manager = app.state.llm_service.router.health_manager
+
+        assert router_manager is manager
+
+
 @pytest.mark.parametrize(
     ("error", "expected_status"),
     [

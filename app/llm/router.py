@@ -9,6 +9,7 @@ from app.llm.exceptions import (
     LLMTimeoutError,
     LLMUpstreamError,
 )
+from app.llm.health import ProviderHealthManager
 from app.llm.model_router import FAST_TASKS, REASONING_TASKS
 from app.llm.task import TaskType
 
@@ -38,6 +39,7 @@ class LLMRouter:
         llm7_general_model: str | None = None,
         llm7_reasoning_model: str | None = None,
         llm7_code_model: str | None = None,
+        health_manager: ProviderHealthManager | None = None,
     ) -> None:
         self.primary_provider = primary_provider
         self.fallback_provider = fallback_provider
@@ -52,6 +54,7 @@ class LLMRouter:
         self.llm7_general_model = llm7_general_model
         self.llm7_reasoning_model = llm7_reasoning_model
         self.llm7_code_model = llm7_code_model
+        self.health_manager = health_manager
 
     async def chat(
         self,
@@ -123,16 +126,42 @@ class LLMRouter:
             seen_provider_ids.add(id(provider))
             provider_calls.append((provider, provider_model))
 
+        if self.health_manager is not None:
+            available_calls: list[
+                tuple[BaseLLMProvider, str | None]
+            ] = []
+            for provider, provider_model in provider_calls:
+                if await self.health_manager.is_available(provider.name):
+                    available_calls.append((provider, provider_model))
+                else:
+                    logger.warning(
+                        "Provider %s skipped because circuit open",
+                        provider.name,
+                    )
+            provider_calls = available_calls
+
         recoverable_failures = 0
 
         for index, (provider, provider_model) in enumerate(provider_calls):
             try:
                 if provider_model is None:
-                    return await provider.chat(messages)
-                return await provider.chat(messages, model=provider_model)
+                    result = await provider.chat(messages)
+                else:
+                    result = await provider.chat(
+                        messages,
+                        model=provider_model,
+                    )
+                if self.health_manager is not None:
+                    await self.health_manager.record_success(provider.name)
+                return result
             except LLMAuthenticationError:
                 raise
-            except RECOVERABLE_PROVIDER_ERRORS:
+            except RECOVERABLE_PROVIDER_ERRORS as error:
+                if self.health_manager is not None:
+                    await self.health_manager.record_failure(
+                        provider.name,
+                        error,
+                    )
                 recoverable_failures += 1
                 if index == len(provider_calls) - 1:
                     if recoverable_failures == 1:

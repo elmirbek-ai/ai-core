@@ -75,6 +75,10 @@ class Settings(BaseSettings):
     llm7_timeout_seconds: float = Field(default=60.0, gt=0)
     llm7_max_retries: int = Field(default=1, ge=0)
 
+    llm_circuit_breaker_enabled: bool = True
+    llm_circuit_failure_threshold: int = Field(default=3, ge=1)
+    llm_circuit_cooldown_seconds: float = Field(default=60.0, ge=0)
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
