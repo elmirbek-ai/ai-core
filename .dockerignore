@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+.venv
+.git
+.gitignore
+.agents
+.codex
+__pycache__
+*.py[cod]
+.pytest_cache
+.idea
+benchmarks/results
+tests
+*.log
+Dockerfile.*
+compose*.override.yaml
