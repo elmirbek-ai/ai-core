@@ -129,3 +129,23 @@ def test_cloudflare_unknown_error_hides_credentials(caplog) -> None:
     assert token not in caplog.text
     assert account_id not in caplog.text
     assert captured.value.__cause__ is None
+
+
+def test_cloudflare_client_initialization_hides_credentials() -> None:
+    token = "private-cloudflare-token"
+    account_id = "private-account-id"
+    settings = cloudflare_settings(
+        cloudflare_api_token=token,
+        cloudflare_account_id=account_id,
+    )
+
+    with patch(
+        "app.llm.providers.cloudflare.AsyncOpenAI",
+        side_effect=RuntimeError(f"{token} {account_id}"),
+    ):
+        with pytest.raises(LLMProviderError) as captured:
+            CloudflareProvider(settings=settings)
+
+    assert token not in str(captured.value)
+    assert account_id not in str(captured.value)
+    assert captured.value.__cause__ is None

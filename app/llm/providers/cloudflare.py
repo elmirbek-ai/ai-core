@@ -39,12 +39,20 @@ class CloudflareProvider(BaseLLMProvider):
             "https://api.cloudflare.com/client/v4/accounts/"
             f"{settings.cloudflare_account_id}/ai/v1"
         )
-        self.client = client or AsyncOpenAI(
-            api_key=settings.cloudflare_api_token,
-            base_url=base_url,
-            timeout=settings.cloudflare_timeout_seconds,
-            max_retries=settings.cloudflare_max_retries,
-        )
+        if client is not None:
+            self.client = client
+        else:
+            try:
+                self.client = AsyncOpenAI(
+                    api_key=settings.cloudflare_api_token,
+                    base_url=base_url,
+                    timeout=settings.cloudflare_timeout_seconds,
+                    max_retries=settings.cloudflare_max_retries,
+                )
+            except Exception:
+                raise LLMProviderError(
+                    "Cloudflare client initialization failed",
+                ) from None
 
     @property
     def name(self) -> str:
@@ -72,9 +80,21 @@ class CloudflareProvider(BaseLLMProvider):
             raise LLMTimeoutError(
                 "Cloudflare request timed out",
             ) from None
-        except (APIConnectionError, APIStatusError, OpenAIError):
+        except APIConnectionError:
             raise LLMUpstreamError(
                 "Cloudflare upstream request failed",
+            ) from None
+        except APIStatusError as exc:
+            if exc.status_code >= 500:
+                raise LLMUpstreamError(
+                    "Cloudflare upstream request failed",
+                ) from None
+            raise LLMProviderError(
+                "Cloudflare provider request failed",
+            ) from None
+        except OpenAIError:
+            raise LLMProviderError(
+                "Cloudflare provider request failed",
             ) from None
         except Exception:
             raise LLMProviderError(

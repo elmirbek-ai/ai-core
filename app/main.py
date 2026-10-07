@@ -16,7 +16,7 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    registry = create_provider_registry(settings)
+    registry = await create_provider_registry(settings)
     try:
         primary_provider = registry.require_enabled(
             settings.llm_primary_provider,

@@ -80,11 +80,14 @@ class LLMRouter:
         messages: list[dict[str, Any]],
         chain: list[tuple[BaseLLMProvider | None, str | None]],
     ) -> dict[str, str]:
-        provider_calls = [
-            (provider, provider_model)
-            for provider, provider_model in chain
-            if provider is not None
-        ]
+        provider_calls: list[tuple[BaseLLMProvider, str | None]] = []
+        seen_provider_ids: set[int] = set()
+        for provider, provider_model in chain:
+            if provider is None or id(provider) in seen_provider_ids:
+                continue
+            seen_provider_ids.add(id(provider))
+            provider_calls.append((provider, provider_model))
+
         recoverable_failures = 0
 
         for index, (provider, provider_model) in enumerate(provider_calls):

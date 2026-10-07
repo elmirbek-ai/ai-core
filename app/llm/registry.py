@@ -61,7 +61,7 @@ class ProviderRegistry:
             )
 
 
-def create_provider_registry(settings: Settings) -> ProviderRegistry:
+async def create_provider_registry(settings: Settings) -> ProviderRegistry:
     ProviderRegistry._validate_name(settings.llm_primary_provider)
     if settings.llm_fallback_provider is not None:
         ProviderRegistry._validate_name(settings.llm_fallback_provider)
@@ -74,14 +74,17 @@ def create_provider_registry(settings: Settings) -> ProviderRegistry:
     if settings.llm_fallback_provider == "cloudflare":
         raise ValueError("Cloudflare cannot be configured as the generic fallback")
 
-    providers: dict[str, BaseLLMProvider] = {
-        "groq": GroqProvider(settings=settings),
-    }
-    if settings.openrouter_api_key:
-        providers["openrouter"] = OpenRouterProvider(settings=settings)
-    if settings.gemini_api_key:
-        providers["gemini"] = GeminiProvider(settings=settings)
-    if settings.cloudflare_api_token and settings.cloudflare_account_id:
-        providers["cloudflare"] = CloudflareProvider(settings=settings)
+    providers: dict[str, BaseLLMProvider] = {}
+    try:
+        providers["groq"] = GroqProvider(settings=settings)
+        if settings.openrouter_api_key:
+            providers["openrouter"] = OpenRouterProvider(settings=settings)
+        if settings.gemini_api_key:
+            providers["gemini"] = GeminiProvider(settings=settings)
+        if settings.cloudflare_api_token and settings.cloudflare_account_id:
+            providers["cloudflare"] = CloudflareProvider(settings=settings)
+    except Exception:
+        await ProviderRegistry(providers).close()
+        raise
 
     return ProviderRegistry(providers)

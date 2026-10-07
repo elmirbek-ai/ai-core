@@ -7,6 +7,7 @@ from openai import (
     AsyncOpenAI,
     AuthenticationError,
     OpenAIError,
+    PermissionDeniedError,
     RateLimitError,
 )
 
@@ -14,6 +15,7 @@ from app.core.config import Settings, get_settings
 from app.llm.base import BaseLLMProvider
 from app.llm.exceptions import (
     LLMAuthenticationError,
+    LLMProviderError,
     LLMRateLimitError,
     LLMTimeoutError,
     LLMUpstreamError,
@@ -52,7 +54,7 @@ class GeminiProvider(BaseLLMProvider):
                 model=self.model,
                 messages=messages,
             )
-        except AuthenticationError:
+        except (AuthenticationError, PermissionDeniedError):
             raise LLMAuthenticationError(
                 "Gemini authentication failed",
             ) from None
@@ -64,9 +66,25 @@ class GeminiProvider(BaseLLMProvider):
             raise LLMTimeoutError(
                 "Gemini request timed out",
             ) from None
-        except (APIConnectionError, APIStatusError, OpenAIError):
+        except APIConnectionError:
             raise LLMUpstreamError(
                 "Gemini upstream request failed",
+            ) from None
+        except APIStatusError as exc:
+            if exc.status_code >= 500:
+                raise LLMUpstreamError(
+                    "Gemini upstream request failed",
+                ) from None
+            raise LLMProviderError(
+                "Gemini provider request failed",
+            ) from None
+        except OpenAIError:
+            raise LLMProviderError(
+                "Gemini provider request failed",
+            ) from None
+        except Exception:
+            raise LLMProviderError(
+                "Gemini provider request failed",
             ) from None
 
         return {

@@ -7,6 +7,7 @@ from openai import (
     AsyncOpenAI,
     AuthenticationError,
     OpenAIError,
+    PermissionDeniedError,
     RateLimitError,
 )
 
@@ -14,6 +15,7 @@ from app.core.config import Settings, get_settings
 from app.llm.base import BaseLLMProvider
 from app.llm.exceptions import (
     LLMAuthenticationError,
+    LLMProviderError,
     LLMRateLimitError,
     LLMTimeoutError,
     LLMUpstreamError,
@@ -52,7 +54,7 @@ class OpenRouterProvider(BaseLLMProvider):
                 model=self.model,
                 messages=messages,
             )
-        except AuthenticationError:
+        except (AuthenticationError, PermissionDeniedError):
             raise LLMAuthenticationError(
                 "OpenRouter authentication failed",
             ) from None
@@ -64,9 +66,25 @@ class OpenRouterProvider(BaseLLMProvider):
             raise LLMTimeoutError(
                 "OpenRouter request timed out",
             ) from None
-        except (APIConnectionError, APIStatusError, OpenAIError):
+        except APIConnectionError:
             raise LLMUpstreamError(
                 "OpenRouter upstream request failed",
+            ) from None
+        except APIStatusError as exc:
+            if exc.status_code >= 500:
+                raise LLMUpstreamError(
+                    "OpenRouter upstream request failed",
+                ) from None
+            raise LLMProviderError(
+                "OpenRouter provider request failed",
+            ) from None
+        except OpenAIError:
+            raise LLMProviderError(
+                "OpenRouter provider request failed",
+            ) from None
+        except Exception:
+            raise LLMProviderError(
+                "OpenRouter provider request failed",
             ) from None
 
         return {

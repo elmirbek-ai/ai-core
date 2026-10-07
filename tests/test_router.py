@@ -456,3 +456,77 @@ def test_multimodal_chain_does_not_use_cloudflare() -> None:
 
     assert result == OPENROUTER_RESULT
     cloudflare.chat.assert_not_awaited()
+
+
+def test_duplicate_provider_instance_is_called_only_once() -> None:
+    groq = provider("groq", error=LLMTimeoutError("failed"))
+    cloudflare = provider("cloudflare", result=CLOUDFLARE_RESULT)
+    router = LLMRouter(
+        primary_provider=groq,
+        fallback_provider=groq,
+        cloudflare_provider=cloudflare,
+    )
+
+    result = asyncio.run(
+        router.chat(MESSAGES, task=TaskType.GENERAL),
+    )
+
+    assert result == CLOUDFLARE_RESULT
+    groq.chat.assert_awaited_once()
+
+
+def test_long_context_skips_all_disabled_optional_providers() -> None:
+    groq = provider("groq", result=GROQ_RESULT)
+    router = LLMRouter(primary_provider=groq)
+
+    result = asyncio.run(
+        router.chat(MESSAGES, task=TaskType.LONG_CONTEXT),
+    )
+
+    assert result == GROQ_RESULT
+    groq.chat.assert_awaited_once_with(MESSAGES)
+
+
+def test_openrouter_authentication_error_stops_fast_chain() -> None:
+    groq = provider("groq", error=LLMTimeoutError("groq failed"))
+    openrouter = provider(
+        "openrouter",
+        error=LLMAuthenticationError("auth failed"),
+    )
+    cloudflare = provider("cloudflare", result=CLOUDFLARE_RESULT)
+    router = LLMRouter(
+        primary_provider=groq,
+        fallback_provider=openrouter,
+        cloudflare_provider=cloudflare,
+    )
+
+    with pytest.raises(LLMAuthenticationError):
+        asyncio.run(
+            router.chat(MESSAGES, task=TaskType.GENERAL),
+        )
+
+    cloudflare.chat.assert_not_awaited()
+
+
+@pytest.mark.parametrize("task", list(TaskType))
+def test_every_task_type_has_a_provider_route(task: TaskType) -> None:
+    groq = provider("groq", result=GROQ_RESULT)
+    gemini = provider(
+        "gemini",
+        result={
+            "provider": "gemini",
+            "model": "gemini-3.8-flash",
+            "content": "gemini response",
+        },
+    )
+    router = LLMRouter(
+        primary_provider=groq,
+        gemini_provider=gemini,
+    )
+
+    result = asyncio.run(router.chat(MESSAGES, task=task))
+
+    if task in {TaskType.MULTIMODAL, TaskType.LONG_CONTEXT}:
+        assert result["provider"] == "gemini"
+    else:
+        assert result["provider"] == "groq"

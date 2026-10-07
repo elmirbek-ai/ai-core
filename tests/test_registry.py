@@ -16,7 +16,7 @@ def test_unknown_provider_is_configuration_error() -> None:
     )
 
     with pytest.raises(ValueError, match="Unknown LLM provider 'mistral'"):
-        create_provider_registry(settings)
+        asyncio.run(create_provider_registry(settings))
 
 
 def test_openrouter_without_api_key_is_disabled(monkeypatch) -> None:
@@ -31,7 +31,7 @@ def test_openrouter_without_api_key_is_disabled(monkeypatch) -> None:
         openrouter_api_key=None,
     )
 
-    registry = create_provider_registry(settings)
+    registry = asyncio.run(create_provider_registry(settings))
 
     assert registry.is_enabled("groq")
     assert not registry.is_enabled("openrouter")
@@ -55,7 +55,7 @@ def test_gemini_with_api_key_is_enabled(monkeypatch) -> None:
         gemini_api_key="gemini-test-key",
     )
 
-    registry = create_provider_registry(settings)
+    registry = asyncio.run(create_provider_registry(settings))
 
     assert registry.is_enabled("gemini")
     assert registry.get_enabled("gemini") is gemini
@@ -73,7 +73,7 @@ def test_gemini_without_api_key_is_disabled(monkeypatch) -> None:
         gemini_api_key=None,
     )
 
-    registry = create_provider_registry(settings)
+    registry = asyncio.run(create_provider_registry(settings))
 
     assert not registry.is_enabled("gemini")
     assert registry.get_enabled("gemini") is None
@@ -97,7 +97,7 @@ def test_cloudflare_with_token_and_account_id_is_enabled(monkeypatch) -> None:
         cloudflare_account_id="test-account-id",
     )
 
-    registry = create_provider_registry(settings)
+    registry = asyncio.run(create_provider_registry(settings))
 
     assert registry.is_enabled("cloudflare")
     assert registry.get_enabled("cloudflare") is cloudflare
@@ -133,7 +133,7 @@ def test_cloudflare_with_incomplete_credentials_is_disabled(
         cloudflare_account_id=account_id,
     )
 
-    registry = create_provider_registry(settings)
+    registry = asyncio.run(create_provider_registry(settings))
 
     assert not registry.is_enabled("cloudflare")
     assert registry.get_enabled("cloudflare") is None
@@ -160,3 +160,31 @@ def test_registry_closes_all_enabled_providers() -> None:
     openrouter.close.assert_awaited_once()
     gemini.close.assert_awaited_once()
     cloudflare.close.assert_awaited_once()
+
+
+def test_partial_registry_startup_failure_closes_created_providers(
+    monkeypatch,
+) -> None:
+    groq = SimpleNamespace(name="groq", close=AsyncMock())
+    monkeypatch.setattr(
+        "app.llm.registry.GroqProvider",
+        lambda settings: groq,
+    )
+
+    def fail_openrouter(settings):
+        raise RuntimeError("constructor failed")
+
+    monkeypatch.setattr(
+        "app.llm.registry.OpenRouterProvider",
+        fail_openrouter,
+    )
+    settings = Settings(
+        _env_file=None,
+        groq_api_key="test-key",
+        openrouter_api_key="openrouter-test-key",
+    )
+
+    with pytest.raises(RuntimeError, match="constructor failed"):
+        asyncio.run(create_provider_registry(settings))
+
+    groq.close.assert_awaited_once()
