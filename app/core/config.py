@@ -45,6 +45,27 @@ class Settings(BaseSettings):
     ollama_timeout_seconds: float = Field(default=60.0, gt=0)
     ollama_max_retries: int = Field(default=2, ge=0)
 
+    # Kilo is an anonymous shared gateway, so explicit opt-in is required.
+    kilo_enabled: bool = False
+    kilo_base_url: str = Field(
+        default="https://api.kilo.ai/api/gateway",
+        min_length=1,
+    )
+    kilo_general_model: str = Field(
+        default="stepfun/step-3.7-flash:free",
+        min_length=1,
+    )
+    kilo_code_model: str = Field(
+        default="cohere/north-mini-code:free",
+        min_length=1,
+    )
+    kilo_long_context_model: str = Field(
+        default="dots-studio/dots-3-note-preview:free",
+        min_length=1,
+    )
+    kilo_timeout_seconds: float = Field(default=60.0, gt=0)
+    kilo_max_retries: int = Field(default=1, ge=0)
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -80,9 +101,16 @@ class Settings(BaseSettings):
             return value.strip() or None
         return value
 
-    @field_validator("ollama_base_url", mode="before")
+    @field_validator(
+        "ollama_base_url",
+        "kilo_base_url",
+        "kilo_general_model",
+        "kilo_code_model",
+        "kilo_long_context_model",
+        mode="before",
+    )
     @classmethod
-    def normalize_ollama_base_url(cls, value: object) -> object:
+    def normalize_non_empty_string(cls, value: object) -> object:
         if isinstance(value, str):
             return value.strip()
         return value

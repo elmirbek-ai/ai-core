@@ -206,6 +206,11 @@ def test_lifespan_closes_all_enabled_providers(monkeypatch) -> None:
         chat=AsyncMock(),
         close=AsyncMock(),
     )
+    kilo = SimpleNamespace(
+        name="kilo",
+        chat=AsyncMock(),
+        close=AsyncMock(),
+    )
     settings = Settings(
         _env_file=None,
         groq_api_key="test-key",
@@ -214,6 +219,7 @@ def test_lifespan_closes_all_enabled_providers(monkeypatch) -> None:
         cloudflare_api_token="cloudflare-test-token",
         cloudflare_account_id="test-account-id",
         ollama_api_key="ollama-test-key",
+        kilo_enabled=True,
     )
     monkeypatch.setattr(main_module, "settings", settings)
     monkeypatch.setattr(
@@ -241,6 +247,11 @@ def test_lifespan_closes_all_enabled_providers(monkeypatch) -> None:
         "OllamaProvider",
         lambda settings: ollama,
     )
+    monkeypatch.setattr(
+        registry_module,
+        "KiloProvider",
+        lambda settings: kilo,
+    )
 
     with TestClient(app):
         pass
@@ -250,6 +261,7 @@ def test_lifespan_closes_all_enabled_providers(monkeypatch) -> None:
     gemini.close.assert_awaited_once()
     cloudflare.close.assert_awaited_once()
     ollama.close.assert_awaited_once()
+    kilo.close.assert_awaited_once()
 
 
 def test_fallback_response_preserves_openrouter_provider(

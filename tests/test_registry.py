@@ -186,12 +186,52 @@ def test_ollama_without_api_key_is_disabled(monkeypatch) -> None:
     ollama_type.assert_not_called()
 
 
+def test_kilo_is_disabled_by_default(monkeypatch) -> None:
+    groq = SimpleNamespace(name="groq", close=AsyncMock())
+    kilo_type = AsyncMock()
+    monkeypatch.setattr(
+        "app.llm.registry.GroqProvider",
+        lambda settings: groq,
+    )
+    monkeypatch.setattr("app.llm.registry.KiloProvider", kilo_type)
+    settings = Settings(_env_file=None, groq_api_key="test-key")
+
+    registry = asyncio.run(create_provider_registry(settings))
+
+    assert not registry.is_enabled("kilo")
+    kilo_type.assert_not_called()
+
+
+def test_kilo_is_enabled_only_with_explicit_opt_in(monkeypatch) -> None:
+    groq = SimpleNamespace(name="groq", close=AsyncMock())
+    kilo = SimpleNamespace(name="kilo", close=AsyncMock())
+    monkeypatch.setattr(
+        "app.llm.registry.GroqProvider",
+        lambda settings: groq,
+    )
+    monkeypatch.setattr(
+        "app.llm.registry.KiloProvider",
+        lambda settings: kilo,
+    )
+    settings = Settings(
+        _env_file=None,
+        groq_api_key="test-key",
+        kilo_enabled=True,
+    )
+
+    registry = asyncio.run(create_provider_registry(settings))
+
+    assert registry.is_enabled("kilo")
+    assert registry.get_enabled("kilo") is kilo
+
+
 def test_registry_closes_all_enabled_providers() -> None:
     groq = SimpleNamespace(name="groq", close=AsyncMock())
     openrouter = SimpleNamespace(name="openrouter", close=AsyncMock())
     gemini = SimpleNamespace(name="gemini", close=AsyncMock())
     cloudflare = SimpleNamespace(name="cloudflare", close=AsyncMock())
     ollama = SimpleNamespace(name="ollama", close=AsyncMock())
+    kilo = SimpleNamespace(name="kilo", close=AsyncMock())
     registry = ProviderRegistry(
         {
             "groq": groq,
@@ -199,6 +239,7 @@ def test_registry_closes_all_enabled_providers() -> None:
             "gemini": gemini,
             "cloudflare": cloudflare,
             "ollama": ollama,
+            "kilo": kilo,
         },
     )
 
@@ -209,6 +250,7 @@ def test_registry_closes_all_enabled_providers() -> None:
     gemini.close.assert_awaited_once()
     cloudflare.close.assert_awaited_once()
     ollama.close.assert_awaited_once()
+    kilo.close.assert_awaited_once()
 
 
 def test_partial_registry_startup_failure_closes_created_providers(
@@ -231,6 +273,31 @@ def test_partial_registry_startup_failure_closes_created_providers(
         _env_file=None,
         groq_api_key="test-key",
         openrouter_api_key="openrouter-test-key",
+    )
+
+    with pytest.raises(RuntimeError, match="constructor failed"):
+        asyncio.run(create_provider_registry(settings))
+
+    groq.close.assert_awaited_once()
+
+
+def test_kilo_startup_failure_closes_previously_created_providers(
+    monkeypatch,
+) -> None:
+    groq = SimpleNamespace(name="groq", close=AsyncMock())
+    monkeypatch.setattr(
+        "app.llm.registry.GroqProvider",
+        lambda settings: groq,
+    )
+
+    def fail_kilo(settings):
+        raise RuntimeError("constructor failed")
+
+    monkeypatch.setattr("app.llm.registry.KiloProvider", fail_kilo)
+    settings = Settings(
+        _env_file=None,
+        groq_api_key="test-key",
+        kilo_enabled=True,
     )
 
     with pytest.raises(RuntimeError, match="constructor failed"):

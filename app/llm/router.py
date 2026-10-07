@@ -30,12 +30,20 @@ class LLMRouter:
         gemini_provider: BaseLLMProvider | None = None,
         cloudflare_provider: BaseLLMProvider | None = None,
         ollama_provider: BaseLLMProvider | None = None,
+        kilo_provider: BaseLLMProvider | None = None,
+        kilo_general_model: str | None = None,
+        kilo_code_model: str | None = None,
+        kilo_long_context_model: str | None = None,
     ) -> None:
         self.primary_provider = primary_provider
         self.fallback_provider = fallback_provider
         self.gemini_provider = gemini_provider
         self.cloudflare_provider = cloudflare_provider
         self.ollama_provider = ollama_provider
+        self.kilo_provider = kilo_provider
+        self.kilo_general_model = kilo_general_model
+        self.kilo_code_model = kilo_code_model
+        self.kilo_long_context_model = kilo_long_context_model
 
     async def chat(
         self,
@@ -55,6 +63,7 @@ class LLMRouter:
             return [
                 (self.gemini_provider, None),
                 (self.fallback_provider, None),
+                (self.kilo_provider, self.kilo_long_context_model),
                 (self.cloudflare_provider, None),
                 (self.ollama_provider, None),
                 (self.primary_provider, None),
@@ -64,6 +73,14 @@ class LLMRouter:
                 (self.gemini_provider, None),
                 (self.fallback_provider, None),
                 (self.primary_provider, None),
+            ]
+        if task == TaskType.CODE:
+            return [
+                (self.primary_provider, model),
+                (self.cloudflare_provider, None),
+                (self.ollama_provider, None),
+                (self.fallback_provider, None),
+                (self.kilo_provider, self.kilo_code_model),
             ]
         if task in REASONING_TASKS:
             return [
@@ -78,6 +95,7 @@ class LLMRouter:
                 (self.fallback_provider, None),
                 (self.cloudflare_provider, None),
                 (self.ollama_provider, None),
+                (self.kilo_provider, self.kilo_general_model),
             ]
         raise ValueError(f"Unsupported task type: {task}")
 

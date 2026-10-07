@@ -37,6 +37,14 @@ OLLAMA_RESULT = {
     "model": "gpt-oss:120b",
     "content": "ollama response",
 }
+KILO_RESULT = {
+    "provider": "kilo",
+    "model": "stepfun/step-3.7-flash",
+    "content": "kilo response",
+}
+KILO_GENERAL_MODEL = "stepfun/step-3.7-flash:free"
+KILO_CODE_MODEL = "cohere/north-mini-code:free"
+KILO_LONG_MODEL = "dots-studio/dots-3-note-preview:free"
 
 
 def provider(name: str, *, result=None, error=None):
@@ -712,3 +720,177 @@ def test_every_task_type_has_a_provider_route(task: TaskType) -> None:
         assert result["provider"] == "gemini"
     else:
         assert result["provider"] == "groq"
+
+
+def test_standard_chain_reaches_kilo_last_with_general_model() -> None:
+    groq = provider("groq", error=LLMTimeoutError("failed"))
+    openrouter = provider("openrouter", error=LLMUpstreamError("failed"))
+    cloudflare = provider("cloudflare", error=LLMRateLimitError("failed"))
+    ollama = provider("ollama", error=LLMTimeoutError("failed"))
+    kilo = provider("kilo", result=KILO_RESULT)
+    router = LLMRouter(
+        primary_provider=groq,
+        fallback_provider=openrouter,
+        cloudflare_provider=cloudflare,
+        ollama_provider=ollama,
+        kilo_provider=kilo,
+        kilo_general_model=KILO_GENERAL_MODEL,
+    )
+
+    result = asyncio.run(router.chat(MESSAGES, task=TaskType.GENERAL))
+
+    assert result == KILO_RESULT
+    kilo.chat.assert_awaited_once_with(MESSAGES, model=KILO_GENERAL_MODEL)
+
+
+def test_code_chain_reaches_kilo_last_with_code_model() -> None:
+    groq = provider("groq", error=LLMTimeoutError("failed"))
+    cloudflare = provider("cloudflare", error=LLMUpstreamError("failed"))
+    ollama = provider("ollama", error=LLMRateLimitError("failed"))
+    openrouter = provider("openrouter", error=LLMTimeoutError("failed"))
+    kilo_result = {**KILO_RESULT, "model": KILO_CODE_MODEL}
+    kilo = provider("kilo", result=kilo_result)
+    router = LLMRouter(
+        primary_provider=groq,
+        fallback_provider=openrouter,
+        cloudflare_provider=cloudflare,
+        ollama_provider=ollama,
+        kilo_provider=kilo,
+        kilo_code_model=KILO_CODE_MODEL,
+    )
+
+    result = asyncio.run(router.chat(MESSAGES, task=TaskType.CODE))
+
+    assert result == kilo_result
+    kilo.chat.assert_awaited_once_with(MESSAGES, model=KILO_CODE_MODEL)
+
+
+def test_long_context_uses_kilo_before_cloudflare_with_long_model() -> None:
+    gemini = provider("gemini", error=LLMTimeoutError("failed"))
+    openrouter = provider("openrouter", error=LLMUpstreamError("failed"))
+    kilo_result = {**KILO_RESULT, "model": KILO_LONG_MODEL}
+    kilo = provider("kilo", result=kilo_result)
+    cloudflare = provider("cloudflare", result=CLOUDFLARE_RESULT)
+    ollama = provider("ollama", result=OLLAMA_RESULT)
+    groq = provider("groq", result=GROQ_RESULT)
+    router = LLMRouter(
+        primary_provider=groq,
+        fallback_provider=openrouter,
+        gemini_provider=gemini,
+        cloudflare_provider=cloudflare,
+        ollama_provider=ollama,
+        kilo_provider=kilo,
+        kilo_long_context_model=KILO_LONG_MODEL,
+    )
+
+    result = asyncio.run(router.chat(MESSAGES, task=TaskType.LONG_CONTEXT))
+
+    assert result == kilo_result
+    kilo.chat.assert_awaited_once_with(MESSAGES, model=KILO_LONG_MODEL)
+    cloudflare.chat.assert_not_awaited()
+    ollama.chat.assert_not_awaited()
+    groq.chat.assert_not_awaited()
+
+
+def test_long_context_continues_after_kilo_recoverable_error() -> None:
+    gemini = provider("gemini", error=LLMTimeoutError("failed"))
+    openrouter = provider("openrouter", error=LLMUpstreamError("failed"))
+    kilo = provider("kilo", error=LLMRateLimitError("failed"))
+    cloudflare = provider("cloudflare", result=CLOUDFLARE_RESULT)
+    groq = provider("groq", result=GROQ_RESULT)
+    router = LLMRouter(
+        primary_provider=groq,
+        fallback_provider=openrouter,
+        gemini_provider=gemini,
+        cloudflare_provider=cloudflare,
+        kilo_provider=kilo,
+        kilo_long_context_model=KILO_LONG_MODEL,
+    )
+
+    result = asyncio.run(router.chat(MESSAGES, task=TaskType.LONG_CONTEXT))
+
+    assert result == CLOUDFLARE_RESULT
+    cloudflare.chat.assert_awaited_once_with(MESSAGES)
+    groq.chat.assert_not_awaited()
+
+
+def test_kilo_authentication_error_stops_long_context_chain() -> None:
+    gemini = provider("gemini", error=LLMTimeoutError("failed"))
+    openrouter = provider("openrouter", error=LLMUpstreamError("failed"))
+    kilo = provider("kilo", error=LLMAuthenticationError("failed"))
+    cloudflare = provider("cloudflare", result=CLOUDFLARE_RESULT)
+    groq = provider("groq", result=GROQ_RESULT)
+    router = LLMRouter(
+        primary_provider=groq,
+        fallback_provider=openrouter,
+        gemini_provider=gemini,
+        cloudflare_provider=cloudflare,
+        kilo_provider=kilo,
+        kilo_long_context_model=KILO_LONG_MODEL,
+    )
+
+    with pytest.raises(LLMAuthenticationError):
+        asyncio.run(router.chat(MESSAGES, task=TaskType.LONG_CONTEXT))
+
+    cloudflare.chat.assert_not_awaited()
+    groq.chat.assert_not_awaited()
+
+
+def test_kilo_non_recoverable_error_stops_long_context_chain() -> None:
+    gemini = provider("gemini", error=LLMTimeoutError("failed"))
+    openrouter = provider("openrouter", error=LLMUpstreamError("failed"))
+    kilo = provider("kilo", error=LLMProviderError("failed"))
+    cloudflare = provider("cloudflare", result=CLOUDFLARE_RESULT)
+    groq = provider("groq", result=GROQ_RESULT)
+    router = LLMRouter(
+        primary_provider=groq,
+        fallback_provider=openrouter,
+        gemini_provider=gemini,
+        cloudflare_provider=cloudflare,
+        kilo_provider=kilo,
+        kilo_long_context_model=KILO_LONG_MODEL,
+    )
+
+    with pytest.raises(LLMProviderError):
+        asyncio.run(router.chat(MESSAGES, task=TaskType.LONG_CONTEXT))
+
+    cloudflare.chat.assert_not_awaited()
+    groq.chat.assert_not_awaited()
+
+
+def test_reasoning_and_multimodal_never_use_kilo() -> None:
+    kilo = provider("kilo", result=KILO_RESULT)
+
+    reasoning_groq = provider("groq", result=GROQ_RESULT)
+    reasoning_router = LLMRouter(
+        primary_provider=reasoning_groq,
+        kilo_provider=kilo,
+    )
+    asyncio.run(reasoning_router.chat(MESSAGES, task=TaskType.REASONING))
+
+    multimodal_groq = provider("groq", result=GROQ_RESULT)
+    multimodal_router = LLMRouter(
+        primary_provider=multimodal_groq,
+        kilo_provider=kilo,
+    )
+    asyncio.run(multimodal_router.chat(MESSAGES, task=TaskType.MULTIMODAL))
+
+    kilo.chat.assert_not_awaited()
+
+
+def test_disabled_kilo_is_skipped_in_standard_chain() -> None:
+    groq = provider("groq", error=LLMTimeoutError("failed"))
+    openrouter = provider("openrouter", error=LLMUpstreamError("failed"))
+    cloudflare = provider("cloudflare", error=LLMRateLimitError("failed"))
+    ollama = provider("ollama", result=OLLAMA_RESULT)
+    router = LLMRouter(
+        primary_provider=groq,
+        fallback_provider=openrouter,
+        cloudflare_provider=cloudflare,
+        ollama_provider=ollama,
+        kilo_provider=None,
+    )
+
+    result = asyncio.run(router.chat(MESSAGES, task=TaskType.GENERAL))
+
+    assert result == OLLAMA_RESULT
