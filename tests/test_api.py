@@ -20,7 +20,7 @@ from app.llm.model_router import TaskModelRouter
 from app.llm.providers.groq import GroqProvider
 from app.llm.router import LLMRouter
 from app.llm.task import TaskType
-from app.main import app
+from app.main import app, settings as app_settings
 from app.services.llm_service import LLMService
 
 
@@ -135,11 +135,16 @@ def test_lifespan_shares_health_manager_with_router() -> None:
         router_concurrency_manager = (
             app.state.llm_service.router.concurrency_manager
         )
+        task_detector = app.state.llm_service.task_detector
 
         assert router_manager is manager
         assert router_budget_policy is budget_policy
         assert router_telemetry is telemetry
         assert router_concurrency_manager is concurrency_manager
+        assert (
+            task_detector.long_context_chars
+            == app_settings.llm_auto_long_context_chars
+        )
 
 
 @pytest.mark.parametrize(

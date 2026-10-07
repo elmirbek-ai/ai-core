@@ -98,6 +98,8 @@ class Settings(BaseSettings):
     llm_kilo_max_concurrency: int = Field(default=1, ge=1)
     llm_llm7_max_concurrency: int = Field(default=1, ge=1)
 
+    llm_auto_long_context_chars: int = Field(default=12_000, gt=0)
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

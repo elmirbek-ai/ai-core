@@ -12,6 +12,7 @@ from app.llm.model_router import TaskModelRouter
 from app.llm.registry import create_provider_registry
 from app.llm.router import LLMRouter
 from app.llm.telemetry import LLMTelemetry
+from app.llm.task_detector import TaskDetector
 from app.services.llm_service import LLMService
 
 
@@ -88,6 +89,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             model_router=TaskModelRouter(
                 fast_model=settings.groq_fast_model,
                 reasoning_model=settings.groq_reasoning_model,
+            ),
+            task_detector=TaskDetector(
+                long_context_chars=settings.llm_auto_long_context_chars,
             ),
         )
         yield

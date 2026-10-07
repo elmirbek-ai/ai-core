@@ -27,7 +27,7 @@
       }
     }
   },
-  "generated_at": "2026-10-07T09:53:27.995709+00:00",
+  "generated_at": "2026-10-07T10:02:10.484353+00:00",
   "health": {
     "groq": {
       "circuit_open": false,
@@ -37,7 +37,7 @@
       "last_failure_type": null
     }
   },
-  "mode": "mock+real",
+  "mode": "mock",
   "passed": true,
   "providers": {
     "groq": {
@@ -73,67 +73,7 @@
       "upstream_failures": 2
     }
   },
-  "real": {
-    "attempted": 5,
-    "failures": 1,
-    "max_requests_per_provider": 1,
-    "providers": [
-      {
-        "attempted": true,
-        "enabled": true,
-        "latency_seconds": 0.9529999999795109,
-        "model": "openai/gpt-oss-20b",
-        "provider": "groq",
-        "success": true
-      },
-      {
-        "attempted": true,
-        "enabled": true,
-        "latency_seconds": 6.562999999965541,
-        "model": "nvidia/nemotron-3.5-lightning:free",
-        "provider": "openrouter",
-        "success": true
-      },
-      {
-        "attempted": true,
-        "enabled": true,
-        "error_category": "timeout",
-        "latency_seconds": 67.0,
-        "provider": "gemini",
-        "success": false
-      },
-      {
-        "attempted": true,
-        "enabled": true,
-        "latency_seconds": 2.484000000054948,
-        "model": "@cf/openai/gpt-oss-120b",
-        "provider": "cloudflare",
-        "success": true
-      },
-      {
-        "attempted": true,
-        "enabled": true,
-        "latency_seconds": 1.437999999965541,
-        "model": "gpt-oss:120b",
-        "provider": "ollama",
-        "success": true
-      },
-      {
-        "attempted": false,
-        "enabled": false,
-        "provider": "kilo"
-      },
-      {
-        "attempted": false,
-        "enabled": false,
-        "provider": "llm7"
-      }
-    ],
-    "ran": true,
-    "sequential": true,
-    "successes": 4
-  },
-  "real_mode_requested": true,
+  "real_mode_requested": false,
   "scenarios": [
     {
       "details": null,
@@ -186,7 +126,7 @@
         "openrouter_max": 3
       },
       "fallback_depth": 0,
-      "latency_seconds": 0.0779999999795109,
+      "latency_seconds": 0.062000000034458935,
       "name": "provider_independence",
       "passed": true,
       "selected_provider": null
@@ -194,7 +134,7 @@
     {
       "details": null,
       "fallback_depth": 0,
-      "latency_seconds": 0.03100000007543713,
+      "latency_seconds": 0.030999999959021807,
       "name": "semaphore_wait_budget",
       "passed": true,
       "selected_provider": null

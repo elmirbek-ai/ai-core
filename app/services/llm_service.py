@@ -1,6 +1,7 @@
 from app.llm.model_router import TaskModelRouter
 from app.llm.router import LLMRouter
 from app.llm.task import TaskType
+from app.llm.task_detector import TaskDetector
 from app.schemas.chat import ChatMessage
 
 
@@ -9,9 +10,11 @@ class LLMService:
         self,
         router: LLMRouter,
         model_router: TaskModelRouter,
+        task_detector: TaskDetector | None = None,
     ) -> None:
         self.router = router
         self.model_router = model_router
+        self.task_detector = task_detector or TaskDetector()
 
     async def chat(
         self,
@@ -23,9 +26,14 @@ class LLMService:
             for message in messages
         ]
 
-        selected_model = self.model_router.select_model(task)
+        resolved_task = (
+            self.task_detector.detect(payload)
+            if task == TaskType.AUTO
+            else task
+        )
+        selected_model = self.model_router.select_model(resolved_task)
         return await self.router.chat(
             payload,
             model=selected_model,
-            task=task,
+            task=resolved_task,
         )
