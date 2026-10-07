@@ -4,6 +4,7 @@ from openai import AsyncOpenAI
 
 from app.core.config import Settings, get_settings
 from app.llm.base import BaseLLMProvider
+from app.llm.capabilities import ProviderCapabilities
 from app.llm.error_mapping import map_provider_exception
 
 
@@ -18,6 +19,9 @@ class OpenRouterProvider(BaseLLMProvider):
             raise ValueError("OpenRouter provider is disabled: API key is missing")
 
         self.model = settings.openrouter_model
+        self._capabilities = ProviderCapabilities(
+            images=settings.openrouter_supports_images,
+        )
         self.client = client or AsyncOpenAI(
             api_key=settings.openrouter_api_key,
             base_url=settings.openrouter_base_url,
@@ -28,6 +32,10 @@ class OpenRouterProvider(BaseLLMProvider):
     @property
     def name(self) -> str:
         return "openrouter"
+
+    @property
+    def capabilities(self) -> ProviderCapabilities:
+        return self._capabilities
 
     async def chat(
         self,

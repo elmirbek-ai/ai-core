@@ -8,6 +8,7 @@ from typing import Any
 
 from app.llm.base import BaseLLMProvider
 from app.llm.budget import RequestBudgetPolicy
+from app.llm.capabilities import ProviderCapabilities, messages_contain_images
 from app.llm.concurrency import (
     ProviderConcurrencyManager,
     ProviderConcurrencyTimeout,
@@ -94,7 +95,16 @@ class LLMRouter:
         request_started = self._clock()
         execution = _RequestExecutionState()
         try:
-            chain = self._provider_chain(task=task, model=model)
+            requires_images = messages_contain_images(messages)
+            if requires_images and task != TaskType.MULTIMODAL:
+                raise LLMProviderError(
+                    "Image content requires a multimodal task",
+                ) from None
+            chain = self._provider_chain(
+                task=task,
+                model=model,
+                requires_images=requires_images,
+            )
             budget_seconds = (
                 self.budget_policy.resolve(task)
                 if self.budget_policy is not None
@@ -137,6 +147,7 @@ class LLMRouter:
         self,
         task: TaskType,
         model: str | None,
+        requires_images: bool = False,
     ) -> list[tuple[BaseLLMProvider | None, str | None]]:
         if task == TaskType.LONG_CONTEXT:
             return [
@@ -148,6 +159,15 @@ class LLMRouter:
                 (self.primary_provider, None),
             ]
         if task == TaskType.MULTIMODAL:
+            if requires_images:
+                return [
+                    (provider, None)
+                    for provider in (
+                        self.gemini_provider,
+                        self.fallback_provider,
+                    )
+                    if self._supports_images(provider)
+                ]
             return [
                 (self.gemini_provider, None),
                 (self.fallback_provider, None),
@@ -180,6 +200,16 @@ class LLMRouter:
                 (self.llm7_provider, self.llm7_general_model),
             ]
         raise ValueError(f"Unsupported task type: {task}")
+
+    @staticmethod
+    def _supports_images(provider: BaseLLMProvider | None) -> bool:
+        if provider is None:
+            return False
+        capabilities = getattr(provider, "capabilities", None)
+        return (
+            isinstance(capabilities, ProviderCapabilities)
+            and capabilities.images
+        )
 
     async def _run_chain(
         self,

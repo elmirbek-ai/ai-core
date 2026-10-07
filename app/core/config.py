@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     openrouter_api_key: str | None = None
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_model: str = "openrouter/free"
+    openrouter_supports_images: bool = False
     openrouter_timeout_seconds: float = Field(default=30.0, gt=0)
     openrouter_max_retries: int = Field(default=2, ge=0)
 

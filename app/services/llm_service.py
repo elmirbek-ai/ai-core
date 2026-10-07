@@ -1,3 +1,5 @@
+from app.llm.capabilities import messages_contain_images
+from app.llm.exceptions import LLMProviderError
 from app.llm.model_router import TaskModelRouter
 from app.llm.router import LLMRouter
 from app.llm.task import TaskType
@@ -22,7 +24,7 @@ class LLMService:
         task: TaskType = TaskType.GENERAL,
     ) -> dict[str, str]:
         payload = [
-            message.model_dump()
+            message.model_dump(mode="json")
             for message in messages
         ]
 
@@ -31,6 +33,13 @@ class LLMService:
             if task == TaskType.AUTO
             else task
         )
+        if (
+            messages_contain_images(payload)
+            and resolved_task != TaskType.MULTIMODAL
+        ):
+            raise LLMProviderError(
+                "Image content requires a multimodal task",
+            ) from None
         selected_model = self.model_router.select_model(resolved_task)
         return await self.router.chat(
             payload,

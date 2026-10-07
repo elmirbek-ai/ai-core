@@ -4,6 +4,7 @@ from openai import AsyncOpenAI
 
 from app.core.config import Settings, get_settings
 from app.llm.base import BaseLLMProvider
+from app.llm.capabilities import IMAGE_CAPABILITIES, ProviderCapabilities
 from app.llm.error_mapping import map_provider_exception
 
 
@@ -28,6 +29,10 @@ class GeminiProvider(BaseLLMProvider):
     @property
     def name(self) -> str:
         return "gemini"
+
+    @property
+    def capabilities(self) -> ProviderCapabilities:
+        return IMAGE_CAPABILITIES
 
     async def chat(
         self,

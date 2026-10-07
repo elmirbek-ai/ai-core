@@ -133,17 +133,25 @@ class TaskDetector:
         self,
         messages: Sequence[Mapping[str, object]],
     ) -> TaskType:
-        contents = [
-            content
+        latest_user_message = self._latest_user_message(messages)
+        if (
+            latest_user_message is not None
+            and self._content_has_image(latest_user_message.get("content"))
+        ):
+            return TaskType.MULTIMODAL
+
+        total_text_length = sum(
+            self._content_text_length(message.get("content"))
             for message in messages
-            if isinstance((content := message.get("content")), str)
-        ]
-        if sum(len(content) for content in contents) > self.long_context_chars:
+        )
+        if total_text_length > self.long_context_chars:
             return TaskType.LONG_CONTEXT
 
-        latest_user_content = self._latest_user_content(messages)
-        if latest_user_content is None:
+        if latest_user_message is None:
             return TaskType.GENERAL
+        latest_user_content = self._content_text(
+            latest_user_message.get("content"),
+        )
         normalized = self._normalize(latest_user_content)
 
         rules = (
@@ -160,19 +168,52 @@ class TaskDetector:
         return TaskType.GENERAL
 
     @staticmethod
-    def _latest_user_content(
+    def _latest_user_message(
         messages: Sequence[Mapping[str, object]],
-    ) -> str | None:
+    ) -> Mapping[str, object] | None:
         for message in reversed(messages):
-            if message.get("role") != "user":
-                continue
-            content = message.get("content")
-            if isinstance(content, str):
-                return content
+            if message.get("role") == "user":
+                return message
         return None
+
+    @staticmethod
+    def _content_has_image(content: object) -> bool:
+        if not isinstance(content, list):
+            return False
+        return any(
+            isinstance(part, Mapping) and part.get("type") == "image_url"
+            for part in content
+        )
+
+    @staticmethod
+    def _content_text(content: object) -> str:
+        if isinstance(content, str):
+            return content
+        if not isinstance(content, list):
+            return ""
+        return " ".join(
+            text
+            for part in content
+            if isinstance(part, Mapping)
+            and part.get("type") == "text"
+            and isinstance((text := part.get("text")), str)
+        )
+
+    @staticmethod
+    def _content_text_length(content: object) -> int:
+        if isinstance(content, str):
+            return len(content)
+        if not isinstance(content, list):
+            return 0
+        return sum(
+            len(text)
+            for part in content
+            if isinstance(part, Mapping)
+            and part.get("type") == "text"
+            and isinstance((text := part.get("text")), str)
+        )
 
     @staticmethod
     def _normalize(value: str) -> str:
         normalized = unicodedata.normalize("NFKC", value).casefold()
         return " ".join(normalized.split())
-
