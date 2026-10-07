@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from typing import Any
 
 from openai import AsyncOpenAI
@@ -6,6 +7,7 @@ from app.core.config import Settings, get_settings
 from app.llm.base import BaseLLMProvider
 from app.llm.capabilities import ProviderCapabilities
 from app.llm.error_mapping import map_provider_exception
+from app.llm.streaming import ProviderStreamChunk, stream_openai_chat
 
 
 class OpenRouterProvider(BaseLLMProvider):
@@ -21,6 +23,7 @@ class OpenRouterProvider(BaseLLMProvider):
         self.model = settings.openrouter_model
         self._capabilities = ProviderCapabilities(
             images=settings.openrouter_supports_images,
+            streaming=True,
         )
         self.client = client or AsyncOpenAI(
             api_key=settings.openrouter_api_key,
@@ -55,6 +58,19 @@ class OpenRouterProvider(BaseLLMProvider):
             "model": response.model,
             "content": response.choices[0].message.content or "",
         }
+
+    async def stream_chat(
+        self,
+        messages: list[dict[str, Any]],
+        model: str | None = None,
+    ) -> AsyncIterator[ProviderStreamChunk]:
+        async for chunk in stream_openai_chat(
+            client=self.client,
+            provider_name=self.name,
+            model=self.model,
+            messages=messages,
+        ):
+            yield chunk
 
     async def close(self) -> None:
         await self.client.close()

@@ -8,10 +8,15 @@ from dataclasses import dataclass
 class ProviderCapabilities:
     text: bool = True
     images: bool = False
+    streaming: bool = False
 
 
 TEXT_ONLY_CAPABILITIES = ProviderCapabilities()
-IMAGE_CAPABILITIES = ProviderCapabilities(images=True)
+STREAMING_TEXT_CAPABILITIES = ProviderCapabilities(streaming=True)
+STREAMING_IMAGE_CAPABILITIES = ProviderCapabilities(
+    images=True,
+    streaming=True,
+)
 
 
 def messages_contain_images(
@@ -25,4 +30,3 @@ def messages_contain_images(
             if isinstance(part, Mapping) and part.get("type") == "image_url":
                 return True
     return False
-

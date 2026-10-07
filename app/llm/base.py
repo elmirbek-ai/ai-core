@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from typing import Any
 
 from app.llm.capabilities import ProviderCapabilities, TEXT_ONLY_CAPABILITIES
+from app.llm.exceptions import LLMProviderError
+from app.llm.streaming import ProviderStreamChunk
 
 
 class BaseLLMProvider(ABC):
@@ -21,6 +24,15 @@ class BaseLLMProvider(ABC):
         model: str | None = None,
     ) -> dict[str, str]:
         pass
+
+    async def stream_chat(
+        self,
+        messages: list[dict[str, Any]],
+        model: str | None = None,
+    ) -> AsyncIterator[ProviderStreamChunk]:
+        del messages, model
+        raise LLMProviderError("Provider does not support streaming")
+        yield
 
     @abstractmethod
     async def close(self) -> None:

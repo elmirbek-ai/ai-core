@@ -173,7 +173,7 @@ def test_gemini_is_explicitly_image_capable() -> None:
 
     gemini = GeminiProvider(settings=settings, client=client)
 
-    assert gemini.capabilities == ProviderCapabilities(text=True, images=True)
+    assert gemini.capabilities.images is True
 
 
 @pytest.mark.parametrize(
@@ -191,7 +191,7 @@ def test_configured_text_providers_default_to_no_image_capability(
 ) -> None:
     instance = object.__new__(provider_type)
 
-    assert instance.capabilities == ProviderCapabilities(text=True, images=False)
+    assert instance.capabilities.images is False
 
 
 @pytest.mark.parametrize("supports_images", [False, True])

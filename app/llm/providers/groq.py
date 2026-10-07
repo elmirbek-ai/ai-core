@@ -1,10 +1,13 @@
+from collections.abc import AsyncIterator
 from typing import Any
 
 from openai import AsyncOpenAI
 
 from app.core.config import Settings, get_settings
 from app.llm.base import BaseLLMProvider
+from app.llm.capabilities import ProviderCapabilities, STREAMING_TEXT_CAPABILITIES
 from app.llm.error_mapping import map_provider_exception
+from app.llm.streaming import ProviderStreamChunk, stream_openai_chat
 
 
 class GroqProvider(BaseLLMProvider):
@@ -27,6 +30,10 @@ class GroqProvider(BaseLLMProvider):
     def name(self) -> str:
         return "groq"
 
+    @property
+    def capabilities(self) -> ProviderCapabilities:
+        return STREAMING_TEXT_CAPABILITIES
+
     async def chat(
         self,
         messages: list[dict[str, Any]],
@@ -46,6 +53,19 @@ class GroqProvider(BaseLLMProvider):
             "model": response.model,
             "content": response.choices[0].message.content or "",
         }
+
+    async def stream_chat(
+        self,
+        messages: list[dict[str, Any]],
+        model: str | None = None,
+    ) -> AsyncIterator[ProviderStreamChunk]:
+        async for chunk in stream_openai_chat(
+            client=self.client,
+            provider_name=self.name,
+            model=model or self.default_model,
+            messages=messages,
+        ):
+            yield chunk
 
     async def close(self) -> None:
         await self.client.close()

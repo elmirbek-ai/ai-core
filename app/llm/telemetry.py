@@ -28,6 +28,24 @@ class ProviderMetrics:
     last_latency_seconds: float = 0.0
     last_success_time: float | None = None
     last_failure_time: float | None = None
+    streaming_attempts: int = 0
+    streaming_successes: int = 0
+    streaming_failures: int = 0
+
+
+@dataclass(slots=True)
+class StreamingRequestMetrics:
+    total: int = 0
+    successes: int = 0
+    failures: int = 0
+    cancellations: int = 0
+    total_duration_seconds: float = 0.0
+    total_time_to_first_token_seconds: float = 0.0
+    first_token_count: int = 0
+    last_duration_seconds: float = 0.0
+    last_time_to_first_token_seconds: float | None = None
+    last_selected_provider: str | None = None
+    last_task: str | None = None
 
 
 @dataclass(slots=True)
@@ -64,6 +82,7 @@ class LLMTelemetry:
         self._clock = clock
         self._providers: dict[str, ProviderMetrics] = {}
         self._requests = RequestMetrics()
+        self._streaming = StreamingRequestMetrics()
         self._lock = asyncio.Lock()
 
     async def record_provider_success(
@@ -126,6 +145,57 @@ class LLMTelemetry:
             )
             metrics.circuit_skips += 1
 
+    async def record_provider_stream_result(
+        self,
+        provider_name: str,
+        *,
+        success: bool,
+    ) -> None:
+        if not self.enabled:
+            return
+        async with self._lock:
+            metrics = self._providers.setdefault(
+                provider_name,
+                ProviderMetrics(),
+            )
+            metrics.streaming_attempts += 1
+            if success:
+                metrics.streaming_successes += 1
+            else:
+                metrics.streaming_failures += 1
+
+    async def record_stream_request(
+        self,
+        *,
+        task: TaskType,
+        selected_provider: str | None,
+        success: bool,
+        duration_seconds: float,
+        time_to_first_token_seconds: float | None,
+        cancelled: bool = False,
+    ) -> None:
+        if not self.enabled:
+            return
+        async with self._lock:
+            duration = max(0.0, duration_seconds)
+            metrics = self._streaming
+            metrics.total += 1
+            metrics.total_duration_seconds += duration
+            metrics.last_duration_seconds = duration
+            metrics.last_selected_provider = selected_provider
+            metrics.last_task = task.value
+            if success:
+                metrics.successes += 1
+            else:
+                metrics.failures += 1
+            if cancelled:
+                metrics.cancellations += 1
+            if time_to_first_token_seconds is not None:
+                first_token = max(0.0, time_to_first_token_seconds)
+                metrics.total_time_to_first_token_seconds += first_token
+                metrics.first_token_count += 1
+                metrics.last_time_to_first_token_seconds = first_token
+
     async def record_request_success(
         self,
         task: TaskType,
@@ -179,6 +249,9 @@ class LLMTelemetry:
                     ),
                     "last_success_time": metrics.last_success_time,
                     "last_failure_time": metrics.last_failure_time,
+                    "streaming_attempts": metrics.streaming_attempts,
+                    "streaming_successes": metrics.streaming_successes,
+                    "streaming_failures": metrics.streaming_failures,
                 }
                 for name, metrics in self._providers.items()
             }
@@ -219,7 +292,41 @@ class LLMTelemetry:
                     for name, metrics in self._requests.by_task.items()
                 },
             }
-            return {"providers": providers, "requests": requests}
+            streaming = {
+                "total": self._streaming.total,
+                "successes": self._streaming.successes,
+                "failures": self._streaming.failures,
+                "cancellations": self._streaming.cancellations,
+                "total_duration_seconds": (
+                    self._streaming.total_duration_seconds
+                ),
+                "average_duration_seconds": self._average(
+                    self._streaming.total_duration_seconds,
+                    self._streaming.total,
+                ),
+                "total_time_to_first_token_seconds": (
+                    self._streaming.total_time_to_first_token_seconds
+                ),
+                "average_time_to_first_token_seconds": self._average(
+                    self._streaming.total_time_to_first_token_seconds,
+                    self._streaming.first_token_count,
+                ),
+                "last_duration_seconds": (
+                    self._streaming.last_duration_seconds
+                ),
+                "last_time_to_first_token_seconds": (
+                    self._streaming.last_time_to_first_token_seconds
+                ),
+                "last_selected_provider": (
+                    self._streaming.last_selected_provider
+                ),
+                "last_task": self._streaming.last_task,
+            }
+            return {
+                "providers": providers,
+                "requests": requests,
+                "streaming": streaming,
+            }
 
     async def _record_request(
         self,

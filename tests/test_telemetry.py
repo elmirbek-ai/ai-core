@@ -373,7 +373,7 @@ def test_snapshot_is_deterministic_and_not_a_mutable_internal_leak() -> None:
 
     assert second["providers"]["groq"]["attempts"] == 1
     assert "injected" not in second["requests"]["by_task"]
-    assert set(second) == {"providers", "requests"}
+    assert set(second) == {"providers", "requests", "streaming"}
 
 
 def test_snapshot_contains_no_payload_or_raw_error_secrets() -> None:

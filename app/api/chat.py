@@ -1,7 +1,12 @@
+import asyncio
+from collections.abc import AsyncIterator
+from contextlib import aclosing
+import json
 import logging
 from typing import NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
 
 from app.llm.exceptions import (
     LLMAuthenticationError,
@@ -20,6 +25,15 @@ router = APIRouter(
     prefix="/v1",
     tags=["AI"],
 )
+
+
+def serialize_sse(event: str, data: dict[str, str]) -> str:
+    serialized = json.dumps(
+        data,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+    return f"event: {event}\ndata: {serialized}\n\n"
 
 
 def get_llm_service(request: Request) -> LLMService:
@@ -72,3 +86,40 @@ async def chat(
         raise_provider_http_error(status.HTTP_502_BAD_GATEWAY, exc)
     except Exception as exc:
         raise_provider_http_error(status.HTTP_502_BAD_GATEWAY, exc)
+
+
+@router.post("/chat/stream")
+async def stream_chat(
+    request: ChatRequest,
+    llm_service: LLMService = Depends(get_llm_service),
+) -> StreamingResponse:
+    async def events() -> AsyncIterator[str]:
+        try:
+            stream = llm_service.stream_chat(
+                messages=request.messages,
+                task=request.task,
+            )
+            async with aclosing(stream):
+                async for event in stream:
+                    yield serialize_sse(event.event, event.data)
+        except asyncio.CancelledError:
+            raise
+        except LLMTimeoutError:
+            yield serialize_sse(
+                "error",
+                {"message": "LLM stream timed out"},
+            )
+        except Exception:
+            yield serialize_sse(
+                "error",
+                {"message": "LLM provider temporarily unavailable"},
+            )
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
