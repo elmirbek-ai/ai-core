@@ -1,12 +1,15 @@
 from functools import lru_cache
 
-from pydantic import Field, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     app_name: str = "AI Core"
     app_version: str = "0.1.0"
+
+    ai_core_auth_enabled: bool = True
+    ai_core_api_key: SecretStr | None = None
 
     groq_api_key: str
     groq_base_url: str = "https://api.groq.com/openai/v1"
@@ -129,6 +132,7 @@ class Settings(BaseSettings):
         "cloudflare_account_id",
         "ollama_api_key",
         "llm7_api_key",
+        "ai_core_api_key",
         mode="before",
     )
     @classmethod

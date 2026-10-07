@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.api.chat import router as chat_router
+from app.core.auth import configure_auth_state
 from app.core.config import get_settings
 from app.llm.budget import RequestBudgetPolicy
 from app.llm.concurrency import ProviderConcurrencyManager
@@ -21,6 +22,7 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    configure_auth_state(app, settings)
     registry = await create_provider_registry(settings)
     try:
         health_manager = ProviderHealthManager(

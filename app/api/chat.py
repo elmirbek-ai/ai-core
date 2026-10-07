@@ -8,6 +8,7 @@ from typing import NoReturn
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 
+from app.core.auth import verify_api_key
 from app.llm.exceptions import (
     LLMAuthenticationError,
     LLMProviderError,
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(
     prefix="/v1",
     tags=["AI"],
+    dependencies=[Depends(verify_api_key)],
 )
 
 
