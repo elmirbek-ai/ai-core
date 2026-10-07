@@ -1,25 +1,10 @@
 from typing import Any
 
-from openai import (
-    APIConnectionError,
-    APIStatusError,
-    APITimeoutError,
-    AsyncOpenAI,
-    AuthenticationError,
-    OpenAIError,
-    PermissionDeniedError,
-    RateLimitError,
-)
+from openai import AsyncOpenAI
 
 from app.core.config import Settings, get_settings
 from app.llm.base import BaseLLMProvider
-from app.llm.exceptions import (
-    LLMAuthenticationError,
-    LLMProviderError,
-    LLMRateLimitError,
-    LLMTimeoutError,
-    LLMUpstreamError,
-)
+from app.llm.error_mapping import map_provider_exception
 
 
 class GroqProvider(BaseLLMProvider):
@@ -53,38 +38,8 @@ class GroqProvider(BaseLLMProvider):
                 model=selected_model,
                 messages=messages,
             )
-        except (AuthenticationError, PermissionDeniedError):
-            raise LLMAuthenticationError(
-                "Groq authentication failed",
-            ) from None
-        except RateLimitError:
-            raise LLMRateLimitError(
-                "Groq rate limit reached",
-            ) from None
-        except APITimeoutError:
-            raise LLMTimeoutError(
-                "Groq request timed out",
-            ) from None
-        except APIConnectionError:
-            raise LLMUpstreamError(
-                "Groq upstream request failed",
-            ) from None
-        except APIStatusError as exc:
-            if exc.status_code >= 500:
-                raise LLMUpstreamError(
-                    "Groq upstream request failed",
-                ) from None
-            raise LLMProviderError(
-                "Groq provider request failed",
-            ) from None
-        except OpenAIError:
-            raise LLMProviderError(
-                "Groq provider request failed",
-            ) from None
-        except Exception:
-            raise LLMProviderError(
-                "Groq provider request failed",
-            ) from None
+        except Exception as exc:
+            raise map_provider_exception(exc, self.name) from None
 
         return {
             "provider": self.name,

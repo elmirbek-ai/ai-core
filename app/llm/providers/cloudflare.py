@@ -1,25 +1,11 @@
 from typing import Any
 
-from openai import (
-    APIConnectionError,
-    APIStatusError,
-    APITimeoutError,
-    AsyncOpenAI,
-    AuthenticationError,
-    OpenAIError,
-    PermissionDeniedError,
-    RateLimitError,
-)
+from openai import AsyncOpenAI
 
 from app.core.config import Settings, get_settings
 from app.llm.base import BaseLLMProvider
-from app.llm.exceptions import (
-    LLMAuthenticationError,
-    LLMProviderError,
-    LLMRateLimitError,
-    LLMTimeoutError,
-    LLMUpstreamError,
-)
+from app.llm.error_mapping import map_provider_exception
+from app.llm.exceptions import LLMProviderError
 
 
 class CloudflareProvider(BaseLLMProvider):
@@ -68,38 +54,8 @@ class CloudflareProvider(BaseLLMProvider):
                 model=self.model,
                 messages=messages,
             )
-        except (AuthenticationError, PermissionDeniedError):
-            raise LLMAuthenticationError(
-                "Cloudflare authentication failed",
-            ) from None
-        except RateLimitError:
-            raise LLMRateLimitError(
-                "Cloudflare rate limit reached",
-            ) from None
-        except APITimeoutError:
-            raise LLMTimeoutError(
-                "Cloudflare request timed out",
-            ) from None
-        except APIConnectionError:
-            raise LLMUpstreamError(
-                "Cloudflare upstream request failed",
-            ) from None
-        except APIStatusError as exc:
-            if exc.status_code >= 500:
-                raise LLMUpstreamError(
-                    "Cloudflare upstream request failed",
-                ) from None
-            raise LLMProviderError(
-                "Cloudflare provider request failed",
-            ) from None
-        except OpenAIError:
-            raise LLMProviderError(
-                "Cloudflare provider request failed",
-            ) from None
-        except Exception:
-            raise LLMProviderError(
-                "Cloudflare provider request failed",
-            ) from None
+        except Exception as exc:
+            raise map_provider_exception(exc, self.name) from None
 
         return {
             "provider": self.name,
