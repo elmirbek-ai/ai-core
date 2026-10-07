@@ -21,6 +21,7 @@ RECOVERABLE_PROVIDER_ERRORS = (
     LLMUpstreamError,
 )
 
+
 class LLMRouter:
     def __init__(
         self,
@@ -28,11 +29,13 @@ class LLMRouter:
         fallback_provider: BaseLLMProvider | None = None,
         gemini_provider: BaseLLMProvider | None = None,
         cloudflare_provider: BaseLLMProvider | None = None,
+        ollama_provider: BaseLLMProvider | None = None,
     ) -> None:
         self.primary_provider = primary_provider
         self.fallback_provider = fallback_provider
         self.gemini_provider = gemini_provider
         self.cloudflare_provider = cloudflare_provider
+        self.ollama_provider = ollama_provider
 
     async def chat(
         self,
@@ -53,6 +56,7 @@ class LLMRouter:
                 (self.gemini_provider, None),
                 (self.fallback_provider, None),
                 (self.cloudflare_provider, None),
+                (self.ollama_provider, None),
                 (self.primary_provider, None),
             ]
         if task == TaskType.MULTIMODAL:
@@ -65,6 +69,7 @@ class LLMRouter:
             return [
                 (self.primary_provider, model),
                 (self.cloudflare_provider, None),
+                (self.ollama_provider, None),
                 (self.fallback_provider, None),
             ]
         if task in FAST_TASKS:
@@ -72,6 +77,7 @@ class LLMRouter:
                 (self.primary_provider, model),
                 (self.fallback_provider, None),
                 (self.cloudflare_provider, None),
+                (self.ollama_provider, None),
             ]
         raise ValueError(f"Unsupported task type: {task}")
 

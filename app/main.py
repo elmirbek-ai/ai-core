@@ -26,6 +26,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
         gemini_provider = registry.get_enabled("gemini")
         cloudflare_provider = registry.get_enabled("cloudflare")
+        ollama_provider = registry.get_enabled("ollama")
         app.state.provider_registry = registry
         app.state.llm_service = LLMService(
             router=LLMRouter(
@@ -33,6 +34,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 fallback_provider=fallback_provider,
                 gemini_provider=gemini_provider,
                 cloudflare_provider=cloudflare_provider,
+                ollama_provider=ollama_provider,
             ),
             model_router=TaskModelRouter(
                 fast_model=settings.groq_fast_model,

@@ -7,12 +7,13 @@ from app.llm.providers.cloudflare import CloudflareProvider
 from app.llm.providers.gemini import GeminiProvider
 from app.llm.providers.groq import GroqProvider
 from app.llm.providers.openrouter import OpenRouterProvider
+from app.llm.providers.ollama import OllamaProvider
 
 
 logger = logging.getLogger(__name__)
 
 VALID_PROVIDER_NAMES = frozenset(
-    {"groq", "openrouter", "gemini", "cloudflare"}
+    {"groq", "openrouter", "gemini", "cloudflare", "ollama"}
 )
 
 
@@ -73,6 +74,10 @@ async def create_provider_registry(settings: Settings) -> ProviderRegistry:
         raise ValueError("Cloudflare cannot be configured as the generic primary")
     if settings.llm_fallback_provider == "cloudflare":
         raise ValueError("Cloudflare cannot be configured as the generic fallback")
+    if settings.llm_primary_provider == "ollama":
+        raise ValueError("Ollama cannot be configured as the generic primary")
+    if settings.llm_fallback_provider == "ollama":
+        raise ValueError("Ollama cannot be configured as the generic fallback")
 
     providers: dict[str, BaseLLMProvider] = {}
     try:
@@ -83,6 +88,8 @@ async def create_provider_registry(settings: Settings) -> ProviderRegistry:
             providers["gemini"] = GeminiProvider(settings=settings)
         if settings.cloudflare_api_token and settings.cloudflare_account_id:
             providers["cloudflare"] = CloudflareProvider(settings=settings)
+        if settings.ollama_api_key:
+            providers["ollama"] = OllamaProvider(settings=settings)
     except Exception:
         await ProviderRegistry(providers).close()
         raise

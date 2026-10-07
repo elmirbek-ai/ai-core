@@ -32,6 +32,11 @@ CLOUDFLARE_RESULT = {
     "model": "cf/openai/gpt-oss-120b",
     "content": "cloudflare response",
 }
+OLLAMA_RESULT = {
+    "provider": "ollama",
+    "model": "gpt-oss:120b",
+    "content": "ollama response",
+}
 
 
 def provider(name: str, *, result=None, error=None):
@@ -306,6 +311,32 @@ def test_fast_chain_uses_cloudflare_after_openrouter_failure() -> None:
     cloudflare.chat.assert_awaited_once_with(MESSAGES)
 
 
+def test_fast_chain_uses_ollama_after_three_failures() -> None:
+    groq = provider("groq", error=LLMTimeoutError("groq failed"))
+    openrouter = provider(
+        "openrouter",
+        error=LLMUpstreamError("openrouter failed"),
+    )
+    cloudflare = provider(
+        "cloudflare",
+        error=LLMRateLimitError("cloudflare failed"),
+    )
+    ollama = provider("ollama", result=OLLAMA_RESULT)
+    router = LLMRouter(
+        primary_provider=groq,
+        fallback_provider=openrouter,
+        cloudflare_provider=cloudflare,
+        ollama_provider=ollama,
+    )
+
+    result = asyncio.run(
+        router.chat(MESSAGES, task=TaskType.GENERAL),
+    )
+
+    assert result == OLLAMA_RESULT
+    ollama.chat.assert_awaited_once_with(MESSAGES)
+
+
 def test_reasoning_chain_groq_success_calls_only_groq() -> None:
     groq = provider("groq", result=GROQ_RESULT)
     cloudflare = provider("cloudflare", result=CLOUDFLARE_RESULT)
@@ -368,6 +399,54 @@ def test_reasoning_chain_uses_openrouter_after_cloudflare_failure() -> None:
     openrouter.chat.assert_awaited_once_with(MESSAGES)
 
 
+def test_reasoning_chain_uses_ollama_before_openrouter() -> None:
+    groq = provider("groq", error=LLMTimeoutError("groq failed"))
+    cloudflare = provider(
+        "cloudflare",
+        error=LLMUpstreamError("cloudflare failed"),
+    )
+    ollama = provider("ollama", result=OLLAMA_RESULT)
+    openrouter = provider("openrouter", result=OPENROUTER_RESULT)
+    router = LLMRouter(
+        primary_provider=groq,
+        fallback_provider=openrouter,
+        cloudflare_provider=cloudflare,
+        ollama_provider=ollama,
+    )
+
+    result = asyncio.run(
+        router.chat(MESSAGES, task=TaskType.REASONING),
+    )
+
+    assert result == OLLAMA_RESULT
+    ollama.chat.assert_awaited_once_with(MESSAGES)
+    openrouter.chat.assert_not_awaited()
+
+
+def test_reasoning_chain_continues_after_ollama_recoverable_error() -> None:
+    groq = provider("groq", error=LLMTimeoutError("groq failed"))
+    cloudflare = provider(
+        "cloudflare",
+        error=LLMUpstreamError("cloudflare failed"),
+    )
+    ollama = provider("ollama", error=LLMRateLimitError("ollama failed"))
+    openrouter = provider("openrouter", result=OPENROUTER_RESULT)
+    router = LLMRouter(
+        primary_provider=groq,
+        fallback_provider=openrouter,
+        cloudflare_provider=cloudflare,
+        ollama_provider=ollama,
+    )
+
+    result = asyncio.run(
+        router.chat(MESSAGES, task=TaskType.CODE),
+    )
+
+    assert result == OPENROUTER_RESULT
+    ollama.chat.assert_awaited_once_with(MESSAGES)
+    openrouter.chat.assert_awaited_once_with(MESSAGES)
+
+
 def test_long_context_uses_cloudflare_after_two_failures() -> None:
     gemini = provider("gemini", error=LLMTimeoutError("gemini failed"))
     openrouter = provider(
@@ -417,6 +496,63 @@ def test_long_context_uses_groq_after_three_failures() -> None:
     groq.chat.assert_awaited_once_with(MESSAGES)
 
 
+def test_long_context_uses_ollama_before_groq() -> None:
+    gemini = provider("gemini", error=LLMTimeoutError("gemini failed"))
+    openrouter = provider(
+        "openrouter",
+        error=LLMUpstreamError("openrouter failed"),
+    )
+    cloudflare = provider(
+        "cloudflare",
+        error=LLMRateLimitError("cloudflare failed"),
+    )
+    ollama = provider("ollama", result=OLLAMA_RESULT)
+    groq = provider("groq", result=GROQ_RESULT)
+    router = LLMRouter(
+        primary_provider=groq,
+        fallback_provider=openrouter,
+        gemini_provider=gemini,
+        cloudflare_provider=cloudflare,
+        ollama_provider=ollama,
+    )
+
+    result = asyncio.run(
+        router.chat(MESSAGES, task=TaskType.LONG_CONTEXT),
+    )
+
+    assert result == OLLAMA_RESULT
+    ollama.chat.assert_awaited_once_with(MESSAGES)
+    groq.chat.assert_not_awaited()
+
+
+def test_long_context_continues_after_ollama_recoverable_error() -> None:
+    gemini = provider("gemini", error=LLMTimeoutError("gemini failed"))
+    openrouter = provider(
+        "openrouter",
+        error=LLMUpstreamError("openrouter failed"),
+    )
+    cloudflare = provider(
+        "cloudflare",
+        error=LLMRateLimitError("cloudflare failed"),
+    )
+    ollama = provider("ollama", error=LLMTimeoutError("ollama failed"))
+    groq = provider("groq", result=GROQ_RESULT)
+    router = LLMRouter(
+        primary_provider=groq,
+        fallback_provider=openrouter,
+        gemini_provider=gemini,
+        cloudflare_provider=cloudflare,
+        ollama_provider=ollama,
+    )
+
+    result = asyncio.run(
+        router.chat(MESSAGES, task=TaskType.LONG_CONTEXT),
+    )
+
+    assert result == GROQ_RESULT
+    groq.chat.assert_awaited_once_with(MESSAGES)
+
+
 def test_cloudflare_authentication_error_stops_reasoning_chain() -> None:
     groq = provider("groq", error=LLMTimeoutError("groq failed"))
     cloudflare = provider(
@@ -456,6 +592,52 @@ def test_multimodal_chain_does_not_use_cloudflare() -> None:
 
     assert result == OPENROUTER_RESULT
     cloudflare.chat.assert_not_awaited()
+
+
+def test_multimodal_chain_does_not_use_ollama() -> None:
+    gemini = provider("gemini", error=LLMTimeoutError("gemini failed"))
+    openrouter = provider("openrouter", result=OPENROUTER_RESULT)
+    ollama = provider("ollama", result=OLLAMA_RESULT)
+    groq = provider("groq", result=GROQ_RESULT)
+    router = LLMRouter(
+        primary_provider=groq,
+        fallback_provider=openrouter,
+        gemini_provider=gemini,
+        ollama_provider=ollama,
+    )
+
+    result = asyncio.run(
+        router.chat(MESSAGES, task=TaskType.MULTIMODAL),
+    )
+
+    assert result == OPENROUTER_RESULT
+    ollama.chat.assert_not_awaited()
+
+
+def test_ollama_authentication_error_stops_reasoning_chain() -> None:
+    groq = provider("groq", error=LLMTimeoutError("groq failed"))
+    cloudflare = provider(
+        "cloudflare",
+        error=LLMUpstreamError("cloudflare failed"),
+    )
+    ollama = provider(
+        "ollama",
+        error=LLMAuthenticationError("auth failed"),
+    )
+    openrouter = provider("openrouter", result=OPENROUTER_RESULT)
+    router = LLMRouter(
+        primary_provider=groq,
+        fallback_provider=openrouter,
+        cloudflare_provider=cloudflare,
+        ollama_provider=ollama,
+    )
+
+    with pytest.raises(LLMAuthenticationError):
+        asyncio.run(
+            router.chat(MESSAGES, task=TaskType.REASONING),
+        )
+
+    openrouter.chat.assert_not_awaited()
 
 
 def test_duplicate_provider_instance_is_called_only_once() -> None:

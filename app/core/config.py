@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     cloudflare_timeout_seconds: float = Field(default=30.0, gt=0)
     cloudflare_max_retries: int = Field(default=2, ge=0)
 
+    ollama_api_key: str | None = None
+    ollama_base_url: str = Field(default="https://ollama.com", min_length=1)
+    ollama_model: str = "gpt-oss:120b"
+    ollama_timeout_seconds: float = Field(default=60.0, gt=0)
+    ollama_max_retries: int = Field(default=2, ge=0)
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -65,12 +71,20 @@ class Settings(BaseSettings):
         "gemini_api_key",
         "cloudflare_api_token",
         "cloudflare_account_id",
+        "ollama_api_key",
         mode="before",
     )
     @classmethod
     def normalize_optional_api_key(cls, value: object) -> object:
         if isinstance(value, str):
             return value.strip() or None
+        return value
+
+    @field_validator("ollama_base_url", mode="before")
+    @classmethod
+    def normalize_ollama_base_url(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip()
         return value
 
 

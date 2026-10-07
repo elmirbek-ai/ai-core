@@ -140,17 +140,65 @@ def test_cloudflare_with_incomplete_credentials_is_disabled(
     cloudflare_type.assert_not_called()
 
 
+def test_ollama_with_api_key_is_enabled(monkeypatch) -> None:
+    groq = SimpleNamespace(name="groq", close=AsyncMock())
+    ollama = SimpleNamespace(name="ollama", close=AsyncMock())
+    monkeypatch.setattr(
+        "app.llm.registry.GroqProvider",
+        lambda settings: groq,
+    )
+    monkeypatch.setattr(
+        "app.llm.registry.OllamaProvider",
+        lambda settings: ollama,
+    )
+    settings = Settings(
+        _env_file=None,
+        groq_api_key="test-key",
+        ollama_api_key="ollama-test-key",
+    )
+
+    registry = asyncio.run(create_provider_registry(settings))
+
+    assert registry.is_enabled("ollama")
+    assert registry.get_enabled("ollama") is ollama
+
+
+def test_ollama_without_api_key_is_disabled(monkeypatch) -> None:
+    groq = SimpleNamespace(name="groq", close=AsyncMock())
+    ollama_type = AsyncMock()
+    monkeypatch.setattr(
+        "app.llm.registry.GroqProvider",
+        lambda settings: groq,
+    )
+    monkeypatch.setattr(
+        "app.llm.registry.OllamaProvider",
+        ollama_type,
+    )
+    settings = Settings(
+        _env_file=None,
+        groq_api_key="test-key",
+        ollama_api_key="  ",
+    )
+
+    registry = asyncio.run(create_provider_registry(settings))
+
+    assert not registry.is_enabled("ollama")
+    ollama_type.assert_not_called()
+
+
 def test_registry_closes_all_enabled_providers() -> None:
     groq = SimpleNamespace(name="groq", close=AsyncMock())
     openrouter = SimpleNamespace(name="openrouter", close=AsyncMock())
     gemini = SimpleNamespace(name="gemini", close=AsyncMock())
     cloudflare = SimpleNamespace(name="cloudflare", close=AsyncMock())
+    ollama = SimpleNamespace(name="ollama", close=AsyncMock())
     registry = ProviderRegistry(
         {
             "groq": groq,
             "openrouter": openrouter,
             "gemini": gemini,
             "cloudflare": cloudflare,
+            "ollama": ollama,
         },
     )
 
@@ -160,6 +208,7 @@ def test_registry_closes_all_enabled_providers() -> None:
     openrouter.close.assert_awaited_once()
     gemini.close.assert_awaited_once()
     cloudflare.close.assert_awaited_once()
+    ollama.close.assert_awaited_once()
 
 
 def test_partial_registry_startup_failure_closes_created_providers(

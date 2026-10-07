@@ -1,3 +1,4 @@
+import httpx
 from openai import (
     APIConnectionError,
     APIStatusError,
@@ -49,6 +50,40 @@ def map_provider_exception(
             return LLMUpstreamError(
                 f"{provider_name} upstream request failed",
             )
+    return LLMProviderError(
+        f"{provider_name} provider request failed",
+    )
+
+
+def map_httpx_provider_exception(
+    error: Exception,
+    provider_name: str,
+) -> LLMProviderError:
+    if isinstance(error, httpx.TimeoutException):
+        return LLMTimeoutError(
+            f"{provider_name} request timed out",
+        )
+    if isinstance(error, httpx.HTTPStatusError):
+        status_code = error.response.status_code
+        if status_code in {401, 403}:
+            return LLMAuthenticationError(
+                f"{provider_name} authentication failed",
+            )
+        if status_code == 429:
+            return LLMRateLimitError(
+                f"{provider_name} rate limit reached",
+            )
+        if status_code >= 500:
+            return LLMUpstreamError(
+                f"{provider_name} upstream request failed",
+            )
+        return LLMProviderError(
+            f"{provider_name} provider request failed",
+        )
+    if isinstance(error, httpx.RequestError):
+        return LLMUpstreamError(
+            f"{provider_name} upstream request failed",
+        )
     return LLMProviderError(
         f"{provider_name} provider request failed",
     )
