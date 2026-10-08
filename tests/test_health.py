@@ -195,6 +195,22 @@ def test_concurrent_failure_updates_are_not_lost() -> None:
     assert state["circuit_open"] is False
 
 
+def test_health_snapshot_mutation_cannot_corrupt_internal_state() -> None:
+    manager = ProviderHealthManager(failure_threshold=3)
+
+    async def exercise() -> tuple[dict, dict]:
+        await manager.record_failure("groq", LLMTimeoutError("private"))
+        first = await manager.snapshot()
+        first["groq"]["consecutive_failures"] = 999
+        first["injected"] = {"consecutive_failures": 999}
+        return first, await manager.snapshot()
+
+    _, second = asyncio.run(exercise())
+
+    assert second["groq"]["consecutive_failures"] == 1
+    assert "injected" not in second
+
+
 def test_disabled_manager_never_tracks_or_skips() -> None:
     manager = ProviderHealthManager(enabled=False, failure_threshold=1)
 

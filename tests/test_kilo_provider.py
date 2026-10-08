@@ -203,14 +203,41 @@ def test_provider_maps_native_http_failures(
     assert BASE_URL not in output
 
 
-def test_malformed_response_is_sanitized() -> None:
-    client = make_client(response(200, {"unexpected": "private payload"}))
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"unexpected": "private payload"},
+        {
+            "model": 123,
+            "choices": [{"message": {"content": ["private payload"]}}],
+        },
+    ],
+)
+def test_malformed_response_is_sanitized(body: dict[str, object]) -> None:
+    client = make_client(response(200, body))
     provider = KiloProvider(settings=make_settings(), client=client)
 
     with pytest.raises(LLMProviderError) as captured:
         asyncio.run(provider.chat(MESSAGES))
 
     assert "private payload" not in str(captured.value)
+
+
+def test_invalid_json_response_is_sanitized() -> None:
+    invalid_json = "private invalid JSON response"
+    upstream_response = httpx.Response(
+        200,
+        request=httpx.Request("POST", f"{BASE_URL}/chat/completions"),
+        content=invalid_json,
+        headers={"Content-Type": "application/json"},
+    )
+    client = make_client(upstream_response)
+    provider = KiloProvider(settings=make_settings(), client=client)
+
+    with pytest.raises(LLMProviderError) as captured:
+        asyncio.run(provider.chat(MESSAGES))
+
+    assert invalid_json not in str(captured.value)
 
 
 @pytest.mark.parametrize(

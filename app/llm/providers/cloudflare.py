@@ -68,10 +68,18 @@ class CloudflareProvider(BaseLLMProvider):
         except Exception as exc:
             raise map_provider_exception(exc, self.name) from None
 
+        try:
+            actual_model = response.model
+            content = response.choices[0].message.content or ""
+            if not isinstance(actual_model, str) or not isinstance(content, str):
+                raise TypeError("Invalid Cloudflare response fields")
+        except Exception as exc:
+            raise map_provider_exception(exc, self.name) from None
+
         return {
             "provider": self.name,
-            "model": response.model,
-            "content": response.choices[0].message.content or "",
+            "model": actual_model,
+            "content": content,
         }
 
     async def stream_chat(

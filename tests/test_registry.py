@@ -317,6 +317,83 @@ def test_registry_closes_all_enabled_providers() -> None:
     llm7.close.assert_awaited_once()
 
 
+def test_all_enabled_providers_initialize_once_and_close_once(monkeypatch) -> None:
+    created: dict[str, SimpleNamespace] = {}
+
+    def factory(name: str):
+        def create(settings):
+            del settings
+            provider = SimpleNamespace(name=name, close=AsyncMock())
+            created[name] = provider
+            return provider
+
+        return create
+
+    provider_types = {
+        "GroqProvider": "groq",
+        "OpenRouterProvider": "openrouter",
+        "GeminiProvider": "gemini",
+        "CloudflareProvider": "cloudflare",
+        "OllamaProvider": "ollama",
+        "KiloProvider": "kilo",
+        "LLM7Provider": "llm7",
+    }
+    for type_name, provider_name in provider_types.items():
+        monkeypatch.setattr(
+            f"app.llm.registry.{type_name}",
+            factory(provider_name),
+        )
+
+    settings = Settings(
+        _env_file=None,
+        groq_api_key="test-key",
+        openrouter_api_key="test-key",
+        gemini_api_key="test-key",
+        cloudflare_api_token="test-token",
+        cloudflare_account_id="test-account",
+        ollama_api_key="test-key",
+        kilo_enabled=True,
+        llm7_enabled=True,
+        llm7_api_key="test-key",
+    )
+
+    registry = asyncio.run(create_provider_registry(settings))
+    asyncio.run(registry.close())
+
+    assert set(created) == set(provider_types.values())
+    assert all(registry.is_enabled(name) for name in created)
+    for provider in created.values():
+        provider.close.assert_awaited_once()
+
+
+def test_registry_cleanup_continues_after_close_failure(caplog) -> None:
+    first = SimpleNamespace(
+        name="groq",
+        close=AsyncMock(side_effect=RuntimeError("private close detail")),
+    )
+    second = SimpleNamespace(name="openrouter", close=AsyncMock())
+    registry = ProviderRegistry({"groq": first, "openrouter": second})
+
+    asyncio.run(registry.close())
+
+    first.close.assert_awaited_once()
+    second.close.assert_awaited_once()
+    assert "private close detail" not in caplog.text
+
+
+def test_repeated_registry_cleanup_remains_safe() -> None:
+    provider = SimpleNamespace(name="groq", close=AsyncMock())
+    registry = ProviderRegistry({"groq": provider})
+
+    async def exercise() -> None:
+        await registry.close()
+        await registry.close()
+
+    asyncio.run(exercise())
+
+    assert provider.close.await_count == 2
+
+
 def test_partial_registry_startup_failure_closes_created_providers(
     monkeypatch,
 ) -> None:

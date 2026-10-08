@@ -12,6 +12,7 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 "app/llm/task.py" = ["UP042"]
 # Cyrillic text is intentional input data for multilingual task detection.
 "app/llm/task_detector.py" = ["RUF001"]
+"tests/test_property_invariants.py" = ["RUF001"]
 "tests/test_task_detector.py" = ["RUF001"]
 
 [tool.ruff.format]
