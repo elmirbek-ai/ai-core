@@ -1,6 +1,6 @@
-from collections.abc import Iterator
 import importlib
 import logging
+from collections.abc import Iterator
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -20,7 +20,8 @@ from app.llm.model_router import TaskModelRouter
 from app.llm.providers.groq import GroqProvider
 from app.llm.router import LLMRouter
 from app.llm.task import TaskType
-from app.main import app, settings as app_settings
+from app.main import app
+from app.main import settings as app_settings
 from app.services.llm_service import LLMService
 
 
@@ -132,9 +133,7 @@ def test_lifespan_shares_health_manager_with_router() -> None:
         telemetry = app.state.llm_telemetry
         router_telemetry = app.state.llm_service.router.telemetry
         concurrency_manager = app.state.provider_concurrency_manager
-        router_concurrency_manager = (
-            app.state.llm_service.router.concurrency_manager
-        )
+        router_concurrency_manager = app.state.llm_service.router.concurrency_manager
         task_detector = app.state.llm_service.task_detector
 
         assert router_manager is manager
@@ -142,8 +141,7 @@ def test_lifespan_shares_health_manager_with_router() -> None:
         assert router_telemetry is telemetry
         assert router_concurrency_manager is concurrency_manager
         assert (
-            task_detector.long_context_chars
-            == app_settings.llm_auto_long_context_chars
+            task_detector.long_context_chars == app_settings.llm_auto_long_context_chars
         )
 
 
@@ -162,9 +160,7 @@ def test_domain_error_http_mapping(
     error: LLMProviderError,
     expected_status: int,
 ) -> None:
-    app.dependency_overrides[get_llm_service] = lambda: (
-        DomainFailingLLMService(error)
-    )
+    app.dependency_overrides[get_llm_service] = lambda: DomainFailingLLMService(error)
 
     try:
         response = client.post(
@@ -184,8 +180,8 @@ def test_secret_is_not_exposed_in_response_or_logs(
     caplog,
 ) -> None:
     secret = "sdk-secret-detail"
-    app.dependency_overrides[get_llm_service] = lambda: (
-        DomainFailingLLMService(LLMUpstreamError(secret))
+    app.dependency_overrides[get_llm_service] = lambda: DomainFailingLLMService(
+        LLMUpstreamError(secret)
     )
 
     try:
@@ -525,9 +521,7 @@ def test_cloudflare_credentials_are_not_exposed_in_response_or_logs(
     token = "private-cloudflare-token"
     account_id = "private-cloudflare-account"
     error = LLMProviderError(f"{token} {account_id}")
-    app.dependency_overrides[get_llm_service] = lambda: (
-        DomainFailingLLMService(error)
-    )
+    app.dependency_overrides[get_llm_service] = lambda: DomainFailingLLMService(error)
 
     try:
         with caplog.at_level(logging.ERROR, logger="app.api.chat"):

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from collections import deque
 from collections.abc import Awaitable, Callable
 from dataclasses import asdict, dataclass
-import time
 from typing import Any
 
 from app.llm.base import BaseLLMProvider
@@ -18,9 +18,7 @@ from app.llm.exceptions import (
 )
 from app.llm.health import ProviderHealthManager
 from app.llm.router import LLMRouter
-from app.llm.task import TaskType
 from app.llm.telemetry import LLMTelemetry
-
 
 MESSAGES = [{"role": "user", "content": "benchmark"}]
 ProviderAction = Callable[[], Awaitable[dict[str, str]]]
@@ -164,14 +162,12 @@ async def run_mock_scenarios() -> dict[str, Any]:
         "max_observed_concurrency"
     ]
     summary["max_observed_concurrency"] = max(
-        result.details.get("max_observed_concurrency", 0)
-        if result.details
-        else 0
+        result.details.get("max_observed_concurrency", 0) if result.details else 0
         for result in results
     )
-    summary["circuit_skips"] = artifacts["circuit_breaker"]["telemetry"][
-        "providers"
-    ]["groq"]["circuit_skips"]
+    summary["circuit_skips"] = artifacts["circuit_breaker"]["telemetry"]["providers"][
+        "groq"
+    ]["circuit_skips"]
     passed = all(result.passed for result in results)
     return {
         "mode": "mock",
@@ -477,21 +473,15 @@ async def _mixed_workload() -> tuple[ScenarioResult, dict[str, Any]]:
 
     primary_actions: list[ProviderAction] = []
     primary_actions.extend(measured_success("groq") for _ in range(30))
-    primary_actions.extend(
-        measured_error(LLMTimeoutError("timeout")) for _ in range(8)
-    )
-    primary_actions.extend(
-        measured_error(LLMRateLimitError("rate")) for _ in range(5)
-    )
+    primary_actions.extend(measured_error(LLMTimeoutError("timeout")) for _ in range(8))
+    primary_actions.extend(measured_error(LLMRateLimitError("rate")) for _ in range(5))
     primary_actions.extend(
         measured_error(LLMUpstreamError("upstream")) for _ in range(3)
     )
     primary_actions.extend(
         measured_error(LLMProviderError("terminal")) for _ in range(2)
     )
-    primary_actions.extend(
-        measured_error(LLMTimeoutError("timeout")) for _ in range(2)
-    )
+    primary_actions.extend(measured_error(LLMTimeoutError("timeout")) for _ in range(2))
     fallback_actions = [measured_success("openrouter") for _ in range(16)]
     fallback_actions.extend(
         measured_error(LLMUpstreamError("fallback upstream")) for _ in range(2)
@@ -551,9 +541,7 @@ async def _mixed_workload() -> tuple[ScenarioResult, dict[str, Any]]:
         "groq_provider_failures": providers["groq"]["provider_failures"],
         "openrouter_attempts": providers["openrouter"]["attempts"],
         "openrouter_successes": providers["openrouter"]["successes"],
-        "openrouter_upstream_failures": providers["openrouter"][
-            "upstream_failures"
-        ],
+        "openrouter_upstream_failures": providers["openrouter"]["upstream_failures"],
         "total_fallback_depth": request_metrics["total_fallback_depth"],
         "max_fallback_depth": max_depth,
     }
@@ -570,9 +558,7 @@ async def _mixed_workload() -> tuple[ScenarioResult, dict[str, Any]]:
         "average_latency_seconds": request_metrics["average_latency_seconds"],
         "average_fallback_depth": request_metrics["average_fallback_depth"],
         "max_fallback_depth": max_depth,
-        "circuit_skips": sum(
-            item["circuit_skips"] for item in providers.values()
-        ),
+        "circuit_skips": sum(item["circuit_skips"] for item in providers.values()),
         "max_observed_concurrency": max(
             primary.max_active_calls,
             fallback.max_active_calls,

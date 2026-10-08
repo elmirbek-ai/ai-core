@@ -1,9 +1,9 @@
 import asyncio
-from collections.abc import AsyncIterator, Callable
-from contextlib import aclosing, asynccontextmanager
-from dataclasses import dataclass
 import logging
 import time
+from collections.abc import AsyncGenerator, AsyncIterator, Callable
+from contextlib import aclosing, asynccontextmanager
+from dataclasses import dataclass
 from typing import Any
 
 from app.llm.base import BaseLLMProvider
@@ -22,10 +22,9 @@ from app.llm.exceptions import (
 )
 from app.llm.health import ProviderHealthManager
 from app.llm.model_router import FAST_TASKS, REASONING_TASKS
+from app.llm.streaming import ProviderStreamChunk, StreamEvent
 from app.llm.task import TaskType
 from app.llm.telemetry import LLMTelemetry
-from app.llm.streaming import ProviderStreamChunk, StreamEvent
-
 
 logger = logging.getLogger(__name__)
 
@@ -118,9 +117,7 @@ class LLMRouter:
                 else None
             )
             deadline = (
-                request_started + budget_seconds
-                if budget_seconds is not None
-                else None
+                request_started + budget_seconds if budget_seconds is not None else None
             )
             result = await self._run_chain(
                 messages=messages,
@@ -142,9 +139,7 @@ class LLMRouter:
         if self.telemetry is not None:
             await self.telemetry.record_request_success(
                 task=task,
-                selected_provider=(
-                    execution.selected_provider or result["provider"]
-                ),
+                selected_provider=(execution.selected_provider or result["provider"]),
                 latency_seconds=self._clock() - request_started,
                 fallback_depth=execution.failed_attempts,
             )
@@ -155,7 +150,7 @@ class LLMRouter:
         messages: list[dict[str, Any]],
         model: str | None = None,
         task: TaskType = TaskType.GENERAL,
-    ) -> AsyncIterator[StreamEvent]:
+    ) -> AsyncGenerator[StreamEvent]:
         request_started = self._clock()
         execution = _StreamExecutionState()
         success = False
@@ -177,9 +172,7 @@ class LLMRouter:
                 else None
             )
             deadline = (
-                request_started + budget_seconds
-                if budget_seconds is not None
-                else None
+                request_started + budget_seconds if budget_seconds is not None else None
             )
             stream = self._run_stream_chain(
                 messages=messages,
@@ -274,20 +267,14 @@ class LLMRouter:
         if provider is None:
             return False
         capabilities = getattr(provider, "capabilities", None)
-        return (
-            isinstance(capabilities, ProviderCapabilities)
-            and capabilities.images
-        )
+        return isinstance(capabilities, ProviderCapabilities) and capabilities.images
 
     @staticmethod
     def _supports_streaming(provider: BaseLLMProvider | None) -> bool:
         if provider is None:
             return False
         capabilities = getattr(provider, "capabilities", None)
-        return (
-            isinstance(capabilities, ProviderCapabilities)
-            and capabilities.streaming
-        )
+        return isinstance(capabilities, ProviderCapabilities) and capabilities.streaming
 
     async def _run_stream_chain(
         self,
@@ -296,7 +283,7 @@ class LLMRouter:
         task: TaskType,
         deadline: float | None,
         execution: _StreamExecutionState,
-    ) -> AsyncIterator[StreamEvent]:
+    ) -> AsyncGenerator[StreamEvent]:
         provider_calls: list[tuple[BaseLLMProvider, str | None]] = []
         seen_provider_ids: set[int] = set()
         for provider, provider_model in chain:
@@ -437,8 +424,8 @@ class LLMRouter:
         provider_model: str | None,
         messages: list[dict[str, Any]],
         remaining: float | None,
-    ) -> AsyncIterator[ProviderStreamChunk]:
-        async def chunks() -> AsyncIterator[ProviderStreamChunk]:
+    ) -> AsyncGenerator[ProviderStreamChunk]:
+        async def chunks() -> AsyncGenerator[ProviderStreamChunk]:
             stream = provider.stream_chat(
                 messages,
                 model=provider_model,

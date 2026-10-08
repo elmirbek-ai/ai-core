@@ -15,7 +15,6 @@ from app.llm.exceptions import (
 from app.llm.router import LLMRouter
 from app.llm.task import TaskType
 
-
 MESSAGES = [{"role": "user", "content": "Hello"}]
 GROQ_RESULT = {
     "provider": "groq",

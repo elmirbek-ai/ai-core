@@ -15,7 +15,6 @@ from app.llm.exceptions import (
     LLMUpstreamError,
 )
 
-
 SECRET = "sensitive-sdk-message"
 SECRET_URL = "https://provider.invalid/private-endpoint"
 

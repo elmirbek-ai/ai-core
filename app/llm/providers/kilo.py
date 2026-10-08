@@ -13,7 +13,6 @@ from app.llm.exceptions import (
     LLMUpstreamError,
 )
 
-
 RETRYABLE_ERRORS = (
     LLMRateLimitError,
     LLMTimeoutError,
@@ -36,9 +35,7 @@ class KiloProvider(BaseLLMProvider):
 
         self.model = settings.kilo_general_model
         self.max_retries = settings.kilo_max_retries
-        self.endpoint = (
-            f"{settings.kilo_base_url.rstrip('/')}/chat/completions"
-        )
+        self.endpoint = f"{settings.kilo_base_url.rstrip('/')}/chat/completions"
         self.headers = {"Content-Type": "application/json"}
         self.client = client or httpx.AsyncClient(
             timeout=settings.kilo_timeout_seconds,

@@ -1,6 +1,6 @@
 import asyncio
-from collections.abc import AsyncIterator, Callable
 import json
+from collections.abc import AsyncIterator, Callable
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -25,7 +25,6 @@ from app.llm.streaming import ProviderStreamChunk, StreamEvent
 from app.llm.task import TaskType
 from app.llm.telemetry import LLMTelemetry
 from app.main import app
-
 
 MESSAGES = [{"role": "user", "content": "Hello"}]
 StreamFactory = Callable[[], AsyncIterator[ProviderStreamChunk]]
@@ -383,10 +382,14 @@ def test_slot_wait_timeout_is_not_a_provider_attempt_or_health_failure() -> None
         release.set()
         await first
         concurrency = await manager.snapshot()
-        return {
-            "calls": calls_after_timeout,
-            "in_flight": concurrency["groq"]["in_flight"],
-        }, health_state, metrics
+        return (
+            {
+                "calls": calls_after_timeout,
+                "in_flight": concurrency["groq"]["in_flight"],
+            },
+            health_state,
+            metrics,
+        )
 
     outcome, health_state, metrics = asyncio.run(exercise())
 
@@ -548,10 +551,7 @@ def test_openai_streaming_provider_uses_real_stream_flag() -> None:
     provider.client = client
 
     async def exercise() -> list[str]:
-        return [
-            chunk.content
-            async for chunk in provider.stream_chat(MESSAGES)
-        ]
+        return [chunk.content async for chunk in provider.stream_chat(MESSAGES)]
 
     chunks = asyncio.run(exercise())
 

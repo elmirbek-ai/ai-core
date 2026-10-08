@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -11,7 +10,7 @@ def read(name: str) -> str:
 def test_dockerfile_is_single_worker_non_root_and_secret_free() -> None:
     dockerfile = read("Dockerfile")
 
-    assert dockerfile.startswith("FROM python:3.12.12-slim-bookworm")
+    assert dockerfile.startswith("FROM python:3.12.15-slim-bookworm")
     assert "USER 10001:10001" in dockerfile
     assert '"--workers", "1"' in dockerfile
     assert "PYTHONDONTWRITEBYTECODE=1" in dockerfile
@@ -47,7 +46,9 @@ def test_production_requirements_are_pinned_without_test_tools() -> None:
     assert requirements
     assert all("==" in requirement for requirement in requirements)
     assert not any(requirement.startswith("pytest==") for requirement in requirements)
-    assert not any(requirement.startswith("iniconfig==") for requirement in requirements)
+    assert not any(
+        requirement.startswith("iniconfig==") for requirement in requirements
+    )
     assert not any(requirement.startswith("pluggy==") for requirement in requirements)
 
 

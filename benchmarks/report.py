@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 SENSITIVE_KEY_PARTS = (
     "api_key",
     "token",
@@ -73,4 +72,3 @@ def render_table(report: dict[str, Any]) -> str:
 def _is_sensitive_key(key: str) -> bool:
     normalized = key.lower()
     return any(part in normalized for part in SENSITIVE_KEY_PARTS)
-

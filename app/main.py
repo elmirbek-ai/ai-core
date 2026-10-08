@@ -13,10 +13,9 @@ from app.llm.health import ProviderHealthManager
 from app.llm.model_router import TaskModelRouter
 from app.llm.registry import create_provider_registry
 from app.llm.router import LLMRouter
-from app.llm.telemetry import LLMTelemetry
 from app.llm.task_detector import TaskDetector
+from app.llm.telemetry import LLMTelemetry
 from app.services.llm_service import LLMService
-
 
 settings = get_settings()
 

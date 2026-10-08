@@ -17,7 +17,6 @@ from app.llm.exceptions import (
 from app.llm.health import ProviderHealthManager
 from app.llm.router import LLMRouter
 
-
 MESSAGES = [{"role": "user", "content": "private prompt"}]
 GROQ_RESULT = {
     "provider": "groq",

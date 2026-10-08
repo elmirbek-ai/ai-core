@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from typing import Any
 
-from app.llm.capabilities import ProviderCapabilities, TEXT_ONLY_CAPABILITIES
+from app.llm.capabilities import TEXT_ONLY_CAPABILITIES, ProviderCapabilities
 from app.llm.exceptions import LLMProviderError
 from app.llm.streaming import ProviderStreamChunk
 
@@ -29,7 +29,7 @@ class BaseLLMProvider(ABC):
         self,
         messages: list[dict[str, Any]],
         model: str | None = None,
-    ) -> AsyncIterator[ProviderStreamChunk]:
+    ) -> AsyncGenerator[ProviderStreamChunk]:
         del messages, model
         raise LLMProviderError("Provider does not support streaming")
         yield

@@ -34,9 +34,7 @@ class Settings(BaseSettings):
     openrouter_max_retries: int = Field(default=2, ge=0)
 
     gemini_api_key: str | None = None
-    gemini_base_url: str = (
-        "https://generativelanguage.googleapis.com/v1beta/openai/"
-    )
+    gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
     gemini_model: str = "gemini-3.8-flash"
     gemini_timeout_seconds: float = Field(default=30.0, gt=0)
     gemini_max_retries: int = Field(default=2, ge=0)
@@ -166,4 +164,5 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    # Pydantic BaseSettings supplies the required value from the environment.
+    return Settings()  # type: ignore[call-arg]

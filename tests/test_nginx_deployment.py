@@ -1,6 +1,5 @@
-from pathlib import Path
 import re
-
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 NGINX_CONFIG = ROOT / "deploy" / "nginx" / "nginx.conf"
@@ -12,12 +11,10 @@ def read(name: str) -> str:
 
 def test_production_compose_only_publishes_nginx_ports() -> None:
     compose = read("compose.prod.yaml")
-    ai_core = compose.split("  ai-core:", maxsplit=1)[1].split(
-        "  nginx:", maxsplit=1
-    )[0]
-    nginx = compose.split("  nginx:", maxsplit=1)[1].split(
-        "\nnetworks:", maxsplit=1
-    )[0]
+    ai_core = compose.split("  ai-core:", maxsplit=1)[1].split("  nginx:", maxsplit=1)[
+        0
+    ]
+    nginx = compose.split("  nginx:", maxsplit=1)[1].split("\nnetworks:", maxsplit=1)[0]
 
     assert "ports:" not in ai_core
     assert '      - "8000"' in ai_core
@@ -46,8 +43,7 @@ def test_nginx_has_tls_redirect_and_safe_proxy_baseline() -> None:
 def test_nginx_timeouts_cover_maximum_application_budget() -> None:
     config = NGINX_CONFIG.read_text(encoding="utf-8")
     read_timeouts = [
-        int(value)
-        for value in re.findall(r"proxy_read_timeout\s+(\d+)s;", config)
+        int(value) for value in re.findall(r"proxy_read_timeout\s+(\d+)s;", config)
     ]
 
     assert read_timeouts

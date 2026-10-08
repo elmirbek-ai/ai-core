@@ -1,15 +1,14 @@
 import asyncio
-from collections.abc import Callable
-from dataclasses import dataclass
 import logging
 import time
+from collections.abc import Callable
+from dataclasses import dataclass
 
 from app.llm.exceptions import (
     LLMRateLimitError,
     LLMTimeoutError,
     LLMUpstreamError,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -86,8 +85,7 @@ class ProviderHealthManager:
             state.last_failure_time = now
 
             circuit_is_open = (
-                state.circuit_open_until is not None
-                and now < state.circuit_open_until
+                state.circuit_open_until is not None and now < state.circuit_open_until
             )
             if (
                 state.consecutive_failures >= self.failure_threshold
@@ -108,8 +106,7 @@ class ProviderHealthManager:
             if state is None:
                 return
             had_failures = (
-                state.consecutive_failures > 0
-                or state.circuit_open_until is not None
+                state.consecutive_failures > 0 or state.circuit_open_until is not None
             )
             state.consecutive_failures = 0
             state.circuit_open_until = None

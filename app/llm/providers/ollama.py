@@ -13,7 +13,6 @@ from app.llm.exceptions import (
     LLMUpstreamError,
 )
 
-
 RETRYABLE_ERRORS = (
     LLMRateLimitError,
     LLMTimeoutError,

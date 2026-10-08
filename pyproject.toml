@@ -1,0 +1,39 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# FastAPI dependency injection intentionally uses Depends() in signatures.
+"app/api/chat.py" = ["B008"]
+# Retain the established str+Enum semantics; StrEnum changes str(member).
+"app/llm/task.py" = ["UP042"]
+# Cyrillic text is intentional input data for multilingual task detection.
+"app/llm/task_detector.py" = ["RUF001"]
+"tests/test_task_detector.py" = ["RUF001"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.mypy]
+python_version = "3.12"
+check_untyped_defs = true
+no_implicit_optional = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+show_error_codes = true
+pretty = true
+
+[tool.coverage.run]
+source = ["app"]
+
+[tool.coverage.report]
+fail_under = 93
+precision = 2
+show_missing = true
+skip_covered = false

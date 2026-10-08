@@ -18,7 +18,6 @@ from app.llm.exceptions import (
 )
 from app.llm.providers.llm7 import LLM7Provider
 
-
 MESSAGES = [{"role": "user", "content": "private prompt"}]
 SECRET = "llm7-test-secret"
 BASE_URL = "https://llm7.example.invalid/v1"

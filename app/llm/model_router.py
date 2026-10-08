@@ -1,6 +1,5 @@
 from app.llm.task import TaskType
 
-
 FAST_TASKS = frozenset(
     {
         TaskType.GENERAL,

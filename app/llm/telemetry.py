@@ -1,7 +1,7 @@
 import asyncio
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-import time
 
 from app.llm.exceptions import (
     LLMAuthenticationError,
@@ -233,9 +233,7 @@ class LLMTelemetry:
                     "attempts": metrics.attempts,
                     "successes": metrics.successes,
                     "recoverable_failures": metrics.recoverable_failures,
-                    "authentication_failures": (
-                        metrics.authentication_failures
-                    ),
+                    "authentication_failures": (metrics.authentication_failures),
                     "provider_failures": metrics.provider_failures,
                     "timeout_failures": metrics.timeout_failures,
                     "rate_limit_failures": metrics.rate_limit_failures,
@@ -271,9 +269,7 @@ class LLMTelemetry:
                     float(self._requests.total_fallback_depth),
                     self._requests.total,
                 ),
-                "last_selected_provider": (
-                    self._requests.last_selected_provider
-                ),
+                "last_selected_provider": (self._requests.last_selected_provider),
                 "last_task": self._requests.last_task,
                 "last_error_category": self._requests.last_error_category,
                 "by_task": {
@@ -281,9 +277,7 @@ class LLMTelemetry:
                         "total": metrics.total,
                         "successes": metrics.successes,
                         "failures": metrics.failures,
-                        "total_latency_seconds": (
-                            metrics.total_latency_seconds
-                        ),
+                        "total_latency_seconds": (metrics.total_latency_seconds),
                         "average_latency_seconds": self._average(
                             metrics.total_latency_seconds,
                             metrics.total,
@@ -297,9 +291,7 @@ class LLMTelemetry:
                 "successes": self._streaming.successes,
                 "failures": self._streaming.failures,
                 "cancellations": self._streaming.cancellations,
-                "total_duration_seconds": (
-                    self._streaming.total_duration_seconds
-                ),
+                "total_duration_seconds": (self._streaming.total_duration_seconds),
                 "average_duration_seconds": self._average(
                     self._streaming.total_duration_seconds,
                     self._streaming.total,
@@ -311,15 +303,11 @@ class LLMTelemetry:
                     self._streaming.total_time_to_first_token_seconds,
                     self._streaming.first_token_count,
                 ),
-                "last_duration_seconds": (
-                    self._streaming.last_duration_seconds
-                ),
+                "last_duration_seconds": (self._streaming.last_duration_seconds),
                 "last_time_to_first_token_seconds": (
                     self._streaming.last_time_to_first_token_seconds
                 ),
-                "last_selected_provider": (
-                    self._streaming.last_selected_provider
-                ),
+                "last_selected_provider": (self._streaming.last_selected_provider),
                 "last_task": self._streaming.last_task,
             }
             return {

@@ -33,8 +33,7 @@ class ProviderConcurrencyManager:
         self.default_limit = default_limit
         self._configured_limits = configured_limits
         self._limiters: dict[str, _ProviderLimiter] = {
-            name: self._new_limiter(limit)
-            for name, limit in configured_limits.items()
+            name: self._new_limiter(limit) for name, limit in configured_limits.items()
         }
         self._lock = asyncio.Lock()
 

@@ -1,6 +1,6 @@
 import asyncio
-from types import SimpleNamespace
 import time
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -14,7 +14,6 @@ from app.llm.task_detector import TaskDetector
 from app.llm.telemetry import LLMTelemetry
 from app.schemas.chat import ChatMessage
 from app.services.llm_service import LLMService
-
 
 FAST_MODEL = "openai/gpt-oss-20b"
 REASONING_MODEL = "openai/gpt-oss-120b"

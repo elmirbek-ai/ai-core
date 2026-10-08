@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
 import re
 import unicodedata
+from collections.abc import Mapping, Sequence
 
 from app.llm.task import TaskType
 
@@ -134,15 +134,13 @@ class TaskDetector:
         messages: Sequence[Mapping[str, object]],
     ) -> TaskType:
         latest_user_message = self._latest_user_message(messages)
-        if (
-            latest_user_message is not None
-            and self._content_has_image(latest_user_message.get("content"))
+        if latest_user_message is not None and self._content_has_image(
+            latest_user_message.get("content")
         ):
             return TaskType.MULTIMODAL
 
         total_text_length = sum(
-            self._content_text_length(message.get("content"))
-            for message in messages
+            self._content_text_length(message.get("content")) for message in messages
         )
         if total_text_length > self.long_context_chars:
             return TaskType.LONG_CONTEXT

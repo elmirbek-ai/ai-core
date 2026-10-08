@@ -10,7 +10,6 @@ from app.llm.task import TaskType
 from app.schemas.chat import ChatMessage
 from app.services.llm_service import LLMService
 
-
 FAST_MODEL = "openai/gpt-oss-20b"
 REASONING_MODEL = "openai/gpt-oss-120b"
 

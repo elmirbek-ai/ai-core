@@ -77,8 +77,7 @@ def test_cloudflare_client_configuration_and_base_url() -> None:
     client_type.assert_called_once_with(
         api_key="cloudflare-test-token",
         base_url=(
-            "https://api.cloudflare.com/client/v4/accounts/"
-            "test-account-id/ai/v1"
+            "https://api.cloudflare.com/client/v4/accounts/test-account-id/ai/v1"
         ),
         timeout=18.0,
         max_retries=4,
@@ -139,12 +138,14 @@ def test_cloudflare_client_initialization_hides_credentials() -> None:
         cloudflare_account_id=account_id,
     )
 
-    with patch(
-        "app.llm.providers.cloudflare.AsyncOpenAI",
-        side_effect=RuntimeError(f"{token} {account_id}"),
+    with (
+        patch(
+            "app.llm.providers.cloudflare.AsyncOpenAI",
+            side_effect=RuntimeError(f"{token} {account_id}"),
+        ),
+        pytest.raises(LLMProviderError) as captured,
     ):
-        with pytest.raises(LLMProviderError) as captured:
-            CloudflareProvider(settings=settings)
+        CloudflareProvider(settings=settings)
 
     assert token not in str(captured.value)
     assert account_id not in str(captured.value)

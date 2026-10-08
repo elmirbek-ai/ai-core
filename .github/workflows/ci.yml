@@ -39,17 +39,53 @@ jobs:
       - name: Compile Python sources
         run: python -m compileall -q app tests benchmarks groq_smoke.py
 
-      - name: Run test suite
-        run: python -m pytest -q -p no:cacheprovider
+      - name: Run Ruff lint
+        run: python -m ruff check app tests benchmarks groq_smoke.py
+
+      - name: Check Ruff formatting
+        run: python -m ruff format --check app tests benchmarks groq_smoke.py
+
+      - name: Run mypy
+        run: python -m mypy app
+
+      - name: Run tests with coverage gate
+        run: >-
+          python -m pytest -q -p no:cacheprovider
+          --cov=app --cov-report=term-missing --cov-fail-under=93
 
       - name: Check installed dependencies
-        run: pip check
+        run: python -m pip check
 
-  docker:
-    name: Docker
-    needs: quality
+      - name: Audit production Python dependencies
+        run: python -m pip_audit --requirement requirements-prod.txt
+
+  secrets:
+    name: Secrets
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out full repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan Git history with Gitleaks
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --volume "${PWD}:/repo:ro" \
+            ghcr.io/gitleaks/gitleaks@sha256:aa036a2f4bdfe3cc3c55fa4326308efabb4a6be498c883c864fd1d0d5585438a \
+            git --redact --no-banner --log-opts="--all" /repo
+
+  docker-security:
+    name: Docker Security
+    needs:
+      - quality
+      - secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Check out repository
@@ -66,6 +102,29 @@ jobs:
 
       - name: Build production image
         run: docker build -t ai-core:ci .
+
+      - name: Scan image with Trivy
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --volume /var/run/docker.sock:/var/run/docker.sock \
+            --volume trivy-cache:/root/.cache/trivy \
+            aquasec/trivy@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 \
+            image --exit-code 1 --ignore-unfixed \
+            --severity HIGH,CRITICAL --scanners vuln --skip-version-check \
+            ai-core:ci
+
+      - name: Scan deployment configuration with Trivy
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --volume "${PWD}:/repo:ro" \
+            --volume trivy-cache:/root/.cache/trivy \
+            aquasec/trivy@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 \
+            config --exit-code 1 --severity HIGH,CRITICAL \
+            --skip-dirs /repo/.git --skip-version-check /repo
 
       - name: Validate Nginx configuration
         shell: bash

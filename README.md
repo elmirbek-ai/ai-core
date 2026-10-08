@@ -345,9 +345,13 @@ certificate paths, firewall guidance, health verification, and shutdown steps.
 The current test suite contains **484 passing tests**.
 
 ```bash
-python -m pytest -q -p no:cacheprovider
 python -m compileall -q app tests benchmarks groq_smoke.py
-pip check
+python -m ruff check app tests benchmarks groq_smoke.py
+python -m ruff format --check app tests benchmarks groq_smoke.py
+python -m mypy app
+python -m pytest -q -p no:cacheprovider --cov=app --cov-report=term-missing
+python -m pip check
+python -m pip_audit --requirement requirements-prod.txt
 ```
 
 Unit and integration tests use mocks and do not require live provider requests.
@@ -375,14 +379,19 @@ GitHub Actions runs on pushes and pull requests targeting `master`. The quality
 gate performs:
 
 - Python compilation
-- The full pytest suite
-- Dependency consistency checks
+- Ruff lint and formatting checks
+- Mypy type checking
+- The full pytest suite with an enforced coverage baseline
+- Dependency consistency and production vulnerability checks
+- Full-history secret scanning with Gitleaks
 - Docker build and Compose validation
+- HIGH/CRITICAL container and deployment configuration scanning with Trivy
 - Nginx syntax validation with a temporary certificate
 - An isolated container health/authentication smoke test
 
 CI does not make real LLM provider requests and does not require provider
-secrets.
+secrets. The container gate blocks fixable HIGH/CRITICAL vulnerabilities;
+unfixed findings remain non-blocking until an upstream remediation exists.
 
 ## Security notes
 

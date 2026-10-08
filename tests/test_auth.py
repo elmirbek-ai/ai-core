@@ -20,7 +20,6 @@ from app.llm.streaming import StreamEvent
 from app.llm.task import TaskType
 from app.main import app
 
-
 main_module = importlib.import_module("app.main")
 
 
@@ -307,6 +306,5 @@ def test_application_lifespan_fails_closed_without_key(
     monkeypatch.setattr(main_module, "settings", settings)
     startup_app = FastAPI(lifespan=main_module.lifespan)
 
-    with pytest.raises(AIClientAuthConfigurationError):
-        with TestClient(startup_app):
-            pass
+    with pytest.raises(AIClientAuthConfigurationError), TestClient(startup_app):
+        pass

@@ -17,7 +17,6 @@ from app.llm.exceptions import (
 )
 from app.llm.providers.kilo import KiloProvider
 
-
 MESSAGES = [{"role": "user", "content": "private prompt"}]
 BASE_URL = "https://kilo.example.invalid/gateway"
 GENERAL_MODEL = "stepfun/step-3.7-flash:free"
@@ -62,9 +61,7 @@ def success_response(
         200,
         {
             "model": actual_model,
-            "choices": [
-                {"message": {"role": "assistant", "content": content}}
-            ],
+            "choices": [{"message": {"role": "assistant", "content": content}}],
             "usage": {"market_cost": 0},
         },
     )
@@ -279,9 +276,11 @@ def test_sensitive_data_is_not_logged_or_exposed(caplog) -> None:
     client = make_client(RuntimeError(sensitive))
     provider = KiloProvider(settings=make_settings(), client=client)
 
-    with caplog.at_level(logging.DEBUG):
-        with pytest.raises(LLMProviderError) as captured:
-            asyncio.run(provider.chat(MESSAGES))
+    with (
+        caplog.at_level(logging.DEBUG),
+        pytest.raises(LLMProviderError) as captured,
+    ):
+        asyncio.run(provider.chat(MESSAGES))
 
     output = f"{captured.value} {caplog.text}"
     assert BASE_URL not in output

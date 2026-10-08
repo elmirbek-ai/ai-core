@@ -70,9 +70,7 @@ def test_gemini_client_configuration() -> None:
 
     client_type.assert_called_once_with(
         api_key="gemini-test-key",
-        base_url=(
-            "https://generativelanguage.googleapis.com/v1beta/openai/"
-        ),
+        base_url=("https://generativelanguage.googleapis.com/v1beta/openai/"),
         timeout=16.0,
         max_retries=3,
     )

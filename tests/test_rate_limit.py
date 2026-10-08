@@ -21,7 +21,6 @@ from app.llm.streaming import StreamEvent
 from app.llm.task import TaskType
 from app.main import app
 
-
 _CLIENT_KEY = "rate-limit-test-credential"
 _PAYLOAD = {"messages": [{"role": "user", "content": "Hello"}]}
 
@@ -147,9 +146,8 @@ def test_disabled_limiter_bypasses_tokens_and_stream_limit() -> None:
     async def exercise() -> dict[str, bool | float | int]:
         for _ in range(100):
             await limiter.acquire_request()
-        async with limiter.stream_slot():
-            async with limiter.stream_slot():
-                return await limiter.snapshot()
+        async with limiter.stream_slot(), limiter.stream_slot():
+            return await limiter.snapshot()
 
     snapshot = asyncio.run(exercise())
 
@@ -432,7 +430,11 @@ def test_ten_concurrent_streams_respect_max_three() -> None:
         finally:
             app.dependency_overrides.clear()
 
-        return [response.status_code for response in responses], service.max_active, during
+        return (
+            [response.status_code for response in responses],
+            service.max_active,
+            during,
+        )
 
     statuses, max_active, during = asyncio.run(exercise())
 

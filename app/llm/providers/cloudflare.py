@@ -1,14 +1,18 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from typing import Any
 
 from openai import AsyncOpenAI
 
 from app.core.config import Settings, get_settings
 from app.llm.base import BaseLLMProvider
-from app.llm.capabilities import ProviderCapabilities, STREAMING_TEXT_CAPABILITIES
+from app.llm.capabilities import STREAMING_TEXT_CAPABILITIES, ProviderCapabilities
 from app.llm.error_mapping import map_provider_exception
 from app.llm.exceptions import LLMProviderError
-from app.llm.streaming import ProviderStreamChunk, stream_openai_chat
+from app.llm.streaming import (
+    ProviderStreamChunk,
+    as_openai_messages,
+    stream_openai_chat,
+)
 
 
 class CloudflareProvider(BaseLLMProvider):
@@ -59,7 +63,7 @@ class CloudflareProvider(BaseLLMProvider):
         try:
             response = await self.client.chat.completions.create(
                 model=self.model,
-                messages=messages,
+                messages=as_openai_messages(messages),
             )
         except Exception as exc:
             raise map_provider_exception(exc, self.name) from None
@@ -74,7 +78,7 @@ class CloudflareProvider(BaseLLMProvider):
         self,
         messages: list[dict[str, Any]],
         model: str | None = None,
-    ) -> AsyncIterator[ProviderStreamChunk]:
+    ) -> AsyncGenerator[ProviderStreamChunk]:
         async for chunk in stream_openai_chat(
             client=self.client,
             provider_name=self.name,

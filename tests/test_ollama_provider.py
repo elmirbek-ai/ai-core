@@ -17,7 +17,6 @@ from app.llm.exceptions import (
 )
 from app.llm.providers.ollama import OllamaProvider
 
-
 MESSAGES = [{"role": "user", "content": "Hello"}]
 SECRET = "ollama-test-secret"
 BASE_URL = "https://ollama.example.invalid"
@@ -233,9 +232,11 @@ def test_secrets_payload_and_endpoint_are_not_logged(
     client = make_client(RuntimeError(f"{SECRET} {BASE_URL} {MESSAGES}"))
     provider = OllamaProvider(settings=make_settings(), client=client)
 
-    with caplog.at_level(logging.DEBUG):
-        with pytest.raises(LLMProviderError) as captured:
-            asyncio.run(provider.chat(MESSAGES))
+    with (
+        caplog.at_level(logging.DEBUG),
+        pytest.raises(LLMProviderError) as captured,
+    ):
+        asyncio.run(provider.chat(MESSAGES))
 
     combined_output = f"{captured.value} {caplog.text}"
     assert SECRET not in combined_output

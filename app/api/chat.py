@@ -1,8 +1,8 @@
 import asyncio
-from collections.abc import AsyncIterator
-from contextlib import aclosing
 import json
 import logging
+from collections.abc import AsyncIterator
+from contextlib import aclosing
 from typing import NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -18,7 +18,6 @@ from app.llm.exceptions import (
 )
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.llm_service import LLMService
-
 
 logger = logging.getLogger(__name__)
 

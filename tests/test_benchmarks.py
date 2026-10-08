@@ -30,9 +30,7 @@ def test_all_final_concurrency_snapshots_have_zero_in_flight() -> None:
 
     snapshots = report["concurrency"].values()
     assert all(
-        state["in_flight"] == 0
-        for snapshot in snapshots
-        for state in snapshot.values()
+        state["in_flight"] == 0 for snapshot in snapshots for state in snapshot.values()
     )
 
 
@@ -89,6 +87,4 @@ def test_real_mode_requires_explicit_flag() -> None:
 
 def test_report_path_generation() -> None:
     root = Path("benchmark-root")
-    assert report_path(root) == (
-        root / "results" / "resilience_report.json"
-    )
+    assert report_path(root) == (root / "results" / "resilience_report.json")

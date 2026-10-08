@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
-from dataclasses import dataclass
 import inspect
-from typing import Any, Literal
+from collections.abc import AsyncGenerator
+from dataclasses import dataclass
+from typing import Any, Literal, cast
+
+from openai.types.chat import ChatCompletionMessageParam
 
 from app.llm.error_mapping import map_provider_exception
 
@@ -21,18 +23,25 @@ class StreamEvent:
     data: dict[str, str]
 
 
+def as_openai_messages(
+    messages: list[dict[str, Any]],
+) -> list[ChatCompletionMessageParam]:
+    """Express validated API messages using the OpenAI-compatible SDK type."""
+    return cast(list[ChatCompletionMessageParam], messages)
+
+
 async def stream_openai_chat(
     *,
     client: Any,
     provider_name: str,
     model: str,
     messages: list[dict[str, Any]],
-) -> AsyncIterator[ProviderStreamChunk]:
+) -> AsyncGenerator[ProviderStreamChunk]:
     stream = None
     try:
         stream = await client.chat.completions.create(
             model=model,
-            messages=messages,
+            messages=as_openai_messages(messages),
             stream=True,
         )
         async for chunk in stream:

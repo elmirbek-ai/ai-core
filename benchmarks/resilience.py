@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from datetime import UTC, datetime
 import logging
 import time
+from datetime import UTC, datetime
 from typing import Any
 
 from app.llm.exceptions import (
@@ -14,10 +14,8 @@ from app.llm.exceptions import (
     LLMTimeoutError,
     LLMUpstreamError,
 )
-
 from benchmarks.report import render_table, report_path, write_json_report
 from benchmarks.scenarios import run_mock_scenarios
-
 
 REAL_PROVIDER_NAMES = (
     "groq",
@@ -70,9 +68,7 @@ async def run_real_smoke() -> dict[str, Any]:
     settings = get_settings()
     registry = await create_provider_registry(settings)
     results: list[dict[str, Any]] = []
-    messages = [
-        {"role": "user", "content": "Reply with exactly: AI Core benchmark OK"}
-    ]
+    messages = [{"role": "user", "content": "Reply with exactly: AI Core benchmark OK"}]
     model_overrides = {
         "groq": settings.groq_fast_model,
         "kilo": settings.kilo_general_model,

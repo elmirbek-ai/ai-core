@@ -8,9 +8,8 @@ from app.llm.providers.gemini import GeminiProvider
 from app.llm.providers.groq import GroqProvider
 from app.llm.providers.kilo import KiloProvider
 from app.llm.providers.llm7 import LLM7Provider
-from app.llm.providers.openrouter import OpenRouterProvider
 from app.llm.providers.ollama import OllamaProvider
-
+from app.llm.providers.openrouter import OpenRouterProvider
 
 logger = logging.getLogger(__name__)
 

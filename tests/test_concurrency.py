@@ -16,7 +16,6 @@ from app.llm.health import ProviderHealthManager
 from app.llm.router import LLMRouter
 from app.llm.telemetry import LLMTelemetry
 
-
 MESSAGES = [{"role": "user", "content": "Hello"}]
 GROQ_RESULT = {
     "provider": "groq",
@@ -165,9 +164,11 @@ def test_provider_limits_are_independent() -> None:
     )
 
     async def exercise() -> dict:
-        async with manager.slot("groq"):
-            async with manager.slot("openrouter", timeout_seconds=0.01):
-                return await manager.snapshot()
+        async with (
+            manager.slot("groq"),
+            manager.slot("openrouter", timeout_seconds=0.01),
+        ):
+            return await manager.snapshot()
 
     snapshot = asyncio.run(exercise())
 

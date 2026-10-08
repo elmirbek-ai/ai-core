@@ -25,7 +25,6 @@ from app.llm.telemetry import LLMTelemetry
 from app.schemas.chat import ChatMessage, ChatRequest
 from app.services.llm_service import LLMService
 
-
 IMAGE_URL = "https://example.com/public-image.jpg"
 MULTIMODAL_CONTENT = [
     {"type": "text", "text": "Describe this image."},
@@ -82,9 +81,7 @@ def test_image_url_content_part_is_valid() -> None:
     message = ChatMessage.model_validate(
         {
             "role": "user",
-            "content": [
-                {"type": "image_url", "image_url": {"url": IMAGE_URL}}
-            ],
+            "content": [{"type": "image_url", "image_url": {"url": IMAGE_URL}}],
         }
     )
 
@@ -124,9 +121,7 @@ def test_malformed_or_unsupported_image_url_is_rejected(image_url: str) -> None:
         ChatMessage.model_validate(
             {
                 "role": "user",
-                "content": [
-                    {"type": "image_url", "image_url": {"url": image_url}}
-                ],
+                "content": [{"type": "image_url", "image_url": {"url": image_url}}],
             }
         )
 
@@ -157,10 +152,7 @@ def test_image_has_priority_over_other_auto_intents() -> None:
         }
     ]
 
-    assert (
-        TaskDetector(long_context_chars=10).detect(messages)
-        == TaskType.MULTIMODAL
-    )
+    assert TaskDetector(long_context_chars=10).detect(messages) == TaskType.MULTIMODAL
 
 
 def test_gemini_is_explicitly_image_capable() -> None:
@@ -263,9 +255,7 @@ def test_multimodal_gemini_success_stops_chain() -> None:
     groq = provider("groq", result={})
     router = LLMRouter(groq, openrouter, gemini)
 
-    result = asyncio.run(
-        router.chat(MULTIMODAL_MESSAGES, task=TaskType.MULTIMODAL)
-    )
+    result = asyncio.run(router.chat(MULTIMODAL_MESSAGES, task=TaskType.MULTIMODAL))
 
     assert result == GEMINI_RESULT
     openrouter.chat.assert_not_awaited()
@@ -282,9 +272,7 @@ def test_multimodal_can_fallback_to_image_capable_openrouter() -> None:
     groq = provider("groq", result={})
     router = LLMRouter(groq, openrouter, gemini)
 
-    result = asyncio.run(
-        router.chat(MULTIMODAL_MESSAGES, task=TaskType.MULTIMODAL)
-    )
+    result = asyncio.run(router.chat(MULTIMODAL_MESSAGES, task=TaskType.MULTIMODAL))
 
     assert result == OPENROUTER_RESULT
     groq.chat.assert_not_awaited()
@@ -301,9 +289,7 @@ def test_openrouter_without_image_capability_is_skipped() -> None:
     router = LLMRouter(groq, openrouter, gemini)
 
     with pytest.raises(LLMTimeoutError):
-        asyncio.run(
-            router.chat(MULTIMODAL_MESSAGES, task=TaskType.MULTIMODAL)
-        )
+        asyncio.run(router.chat(MULTIMODAL_MESSAGES, task=TaskType.MULTIMODAL))
 
     openrouter.chat.assert_not_awaited()
     groq.chat.assert_not_awaited()
@@ -315,9 +301,7 @@ def test_no_image_capable_provider_returns_safe_domain_error() -> None:
     router = LLMRouter(groq, openrouter, gemini_provider=None)
 
     with pytest.raises(LLMProviderError, match="No provider is available"):
-        asyncio.run(
-            router.chat(MULTIMODAL_MESSAGES, task=TaskType.MULTIMODAL)
-        )
+        asyncio.run(router.chat(MULTIMODAL_MESSAGES, task=TaskType.MULTIMODAL))
 
     groq.chat.assert_not_awaited()
     openrouter.chat.assert_not_awaited()
@@ -346,9 +330,7 @@ def test_all_text_only_providers_are_protected_from_image_payload() -> None:
     )
 
     with pytest.raises(LLMTimeoutError):
-        asyncio.run(
-            router.chat(MULTIMODAL_MESSAGES, task=TaskType.MULTIMODAL)
-        )
+        asyncio.run(router.chat(MULTIMODAL_MESSAGES, task=TaskType.MULTIMODAL))
 
     for text_provider in (openrouter, groq, cloudflare, ollama, kilo, llm7):
         text_provider.chat.assert_not_awaited()
@@ -425,11 +407,11 @@ def test_image_url_is_absent_from_router_logs(caplog) -> None:
     groq = provider("groq", result={})
     router = LLMRouter(groq, gemini_provider=gemini)
 
-    with caplog.at_level(logging.WARNING, logger="app.llm.router"):
-        with pytest.raises(LLMTimeoutError):
-            asyncio.run(
-                router.chat(MULTIMODAL_MESSAGES, task=TaskType.MULTIMODAL)
-            )
+    with (
+        caplog.at_level(logging.WARNING, logger="app.llm.router"),
+        pytest.raises(LLMTimeoutError),
+    ):
+        asyncio.run(router.chat(MULTIMODAL_MESSAGES, task=TaskType.MULTIMODAL))
 
     assert IMAGE_URL not in caplog.text
     assert "private upstream body" not in caplog.text

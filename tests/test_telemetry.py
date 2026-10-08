@@ -19,7 +19,6 @@ from app.llm.router import LLMRouter
 from app.llm.task import TaskType
 from app.llm.telemetry import LLMTelemetry
 
-
 MESSAGES = [{"role": "user", "content": "private prompt"}]
 GROQ_RESULT = {
     "provider": "groq",
@@ -345,10 +344,7 @@ def test_concurrent_updates_do_not_lose_counters() -> None:
 
     async def exercise() -> dict:
         await asyncio.gather(
-            *(
-                telemetry.record_provider_success("groq", 0.01)
-                for _ in range(100)
-            )
+            *(telemetry.record_provider_success("groq", 0.01) for _ in range(100))
         )
         return await telemetry.snapshot()
 
