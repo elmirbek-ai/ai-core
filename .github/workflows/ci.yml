@@ -55,11 +55,34 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Validate Compose configuration
-        run: docker compose -f compose.yaml config --quiet
+      - name: Validate Compose configurations
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'rm -f .env' EXIT
+          touch .env
+          docker compose -f compose.yaml config --quiet
+          docker compose -f compose.prod.yaml config --quiet
 
       - name: Build production image
         run: docker build -t ai-core:ci .
+
+      - name: Validate Nginx configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          cert_dir="$(mktemp -d)"
+          trap 'rm -f "${cert_dir}/privkey.pem" "${cert_dir}/fullchain.pem"; rmdir "${cert_dir}"' EXIT
+          openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
+            -subj '/CN=localhost' \
+            -keyout "${cert_dir}/privkey.pem" \
+            -out "${cert_dir}/fullchain.pem" 2>/dev/null
+          docker run --rm \
+            --add-host ai-core:127.0.0.1 \
+            --volume "${PWD}/deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro" \
+            --volume "${cert_dir}:/etc/nginx/certs:ro" \
+            nginx:1.28.0-alpine@sha256:30f1c0d78e0ad60901648be663a710bdadf19e4c10ac6782c235200619158284 \
+            nginx -t
 
       - name: Start isolated container
         shell: bash

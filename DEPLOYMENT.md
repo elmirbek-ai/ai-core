@@ -43,12 +43,14 @@ docker build -t ai-core:latest .
 docker run --name ai-core --env-file .env -p 8000:8000 ai-core:latest
 ```
 
-Or use Compose:
+For local development, use the direct-port Compose file:
 
 ```bash
 docker compose up --build -d
 docker compose ps
 ```
+
+This local workflow publishes port 8000 and is not the public-server layout.
 
 The image uses Python 3.12 slim, exact dependency versions, a non-root UID,
 and one Uvicorn worker. The container does not need a writable application
@@ -107,9 +109,9 @@ at runtime through `.env` or a deployment secret manager.
 
 AI Core does not enable CORS because the current deployment model is
 server-to-server. It also does not trust or parse forwarded client IP headers.
-TLS termination, request-size controls, and any future distributed/global
-rate limiting belong at a trusted reverse proxy such as Nginx, Caddy, or
-Cloudflare; no proxy configuration is bundled here.
+AI Core does not interpret forwarded client IP headers. Nginx forwards standard
+proxy metadata, but the application does not use it for authentication or rate
+limiting.
 
 Benchmark result JSON is an explicit repository audit artifact, but the whole
 `benchmarks/results` directory is excluded from production Docker contexts.
@@ -126,3 +128,82 @@ image, and starts an isolated container with generated test-only credentials.
 It verifies public health and confirms that an unauthenticated inference request
 returns HTTP 401 before any provider can be called. CI never runs real-provider
 smoke scripts and does not require GitHub Secrets.
+
+## Production reverse proxy
+
+The public-server baseline is:
+
+```text
+Internet -> Nginx :80/:443 -> ai-core:8000 (Docker network only)
+```
+
+Use `compose.prod.yaml` as a standalone production Compose file. It does not
+publish AI Core port 8000; only Nginx publishes ports 80 and 443. The original
+`compose.yaml` remains the local-development configuration.
+
+Before deployment:
+
+1. Point the intended DNS name at the server.
+2. Replace the `api.example.com` placeholders in
+   `deploy/nginx/nginx.conf` with that DNS name.
+3. Obtain a trusted certificate outside this repository and provide:
+   `deploy/nginx/certs/fullchain.pem` and
+   `deploy/nginx/certs/privkey.pem`.
+4. Keep both certificate files untracked and readable only by the deployment
+   operator. Certificate issuance and renewal remain an operator responsibility.
+
+Start the production stack only after the certificate files exist:
+
+```bash
+docker compose -f compose.prod.yaml up --build -d
+docker compose -f compose.prod.yaml ps
+```
+
+Port 80 redirects to HTTPS with status 308. The HTTPS server terminates TLS and
+proxies requests to `ai-core:8000`. It permits at most 2 MiB request bodies,
+which is deliberately generous for current text and image-URL JSON payloads
+without enabling binary uploads. Proxy read/send timeouts are 120 seconds,
+longer than the maximum 90-second application request budget but still finite.
+
+The SSE route disables proxy buffering, caching, and gzip so deltas are relayed
+without being accumulated by Nginx. HSTS is emitted only by the production
+HTTPS server; deploy this configuration only after the real domain has a valid
+certificate. No CSP is forced because it would require a separate policy for
+the public FastAPI documentation UI.
+
+Verify the proxy without exposing credentials:
+
+```bash
+curl --fail https://api.example.com/health
+
+curl --fail-with-body \
+  -H "Authorization: Bearer ${AI_CORE_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"task":"general","messages":[{"role":"user","content":"Hello"}]}' \
+  https://api.example.com/v1/chat
+
+curl --no-buffer --fail-with-body \
+  -H "Authorization: Bearer ${AI_CORE_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"task":"general","messages":[{"role":"user","content":"Hello"}]}' \
+  https://api.example.com/v1/chat/stream
+```
+
+Nginx access logs contain method, normalized path, status, response size, and
+request latency only. They do not include request bodies, query strings, bearer
+headers, prompts, or responses. The application token bucket remains the
+logical API limiter. An Nginx per-IP limiter is intentionally omitted because
+client IP trust is not yet configured and a CDN or upstream proxy could make
+many clients appear under one address.
+
+For shutdown and restart:
+
+```bash
+docker compose -f compose.prod.yaml down
+docker compose -f compose.prod.yaml restart
+```
+
+At the host firewall, expose only HTTPS 443, HTTP 80 for redirect, and SSH 22
+according to the operator's access policy. Do not expose port 8000 publicly.
+Firewall commands are OS- and provider-specific and are intentionally not
+automated here.
