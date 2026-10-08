@@ -16,6 +16,12 @@ concurrency limits, inbound rate limiting, and process-local telemetry. It
 supports authenticated non-streaming and SSE APIs, deterministic local task
 detection, and HTTPS image-URL messages.
 
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md) — current system, target system, principles, and boundaries
+- [Roadmap](docs/ROADMAP.md) — governed Phase 0–15 development sequence
+- [Architecture Decision Records](docs/adr/) — accepted decisions and consequences
+
 ## Architecture
 
 ```mermaid
