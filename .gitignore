@@ -1,6 +1,80 @@
-.venv/
+# Environment and secrets
 .env
+.env.*
+!.env.example
+secrets/
+.secrets/
+credentials.json
+credentials*.json
+*.secret
+
+# Python environments and bytecode
+.venv/
+venv/
+env/
 __pycache__/
+*.py[cod]
+*.pycod
+*$py.class
+*py.class
+
+# Python tooling and test caches
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.pytype/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Python build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# IDEs and editors
 .idea/
-*.pyc
+.vscode/
+*.iml
+*.swp
+*.swo
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs and runtime files
+*.log
+logs/
+*.pid
+*.pid.lock
+*.tmp
+*.temp
+tmp/
+.cache/
+
+# Generated benchmark output
+benchmarks/results/
+
+# TLS certificates and key stores
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+deploy/nginx/certs/*
+!deploy/nginx/certs/.gitignore
+
+# Local Docker Compose overrides
+compose.override.yaml
+compose.override.yml
+docker-compose.override.yml
+docker-compose.override.yaml
+
+# Local Python version managers
+.python-version
