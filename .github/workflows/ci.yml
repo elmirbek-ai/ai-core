@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install dependencies
+        run: python -m pip install --requirement requirements-dev.txt
+
+      - name: Compile Python sources
+        run: python -m compileall -q app tests benchmarks groq_smoke.py
+
+      - name: Run test suite
+        run: python -m pytest -q -p no:cacheprovider
+
+      - name: Check installed dependencies
+        run: pip check
+
+  docker:
+    name: Docker
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate Compose configuration
+        run: docker compose -f compose.yaml config --quiet
+
+      - name: Build production image
+        run: docker build -t ai-core:ci .
+
+      - name: Start isolated container
+        shell: bash
+        run: |
+          set -euo pipefail
+          api_key="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          docker run --detach \
+            --name ai-core-ci \
+            --publish 127.0.0.1:8000:8000 \
+            --env AI_CORE_AUTH_ENABLED=true \
+            --env AI_CORE_API_KEY="${api_key}" \
+            --env GROQ_API_KEY=ci-provider-placeholder \
+            ai-core:ci
+
+      - name: Wait for container health
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent --show-error \
+              http://127.0.0.1:8000/health > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Container did not become healthy within 40 seconds" >&2
+          exit 1
+
+      - name: Verify public health and protected inference
+        shell: bash
+        run: |
+          set -euo pipefail
+          health_status="$(curl --silent --output /dev/null \
+            --write-out '%{http_code}' \
+            http://127.0.0.1:8000/health)"
+          unauthorized_status="$(curl --silent --output /dev/null \
+            --write-out '%{http_code}' \
+            --request POST \
+            --header 'Content-Type: application/json' \
+            --data '{"messages":[{"role":"user","content":"test"}]}' \
+            http://127.0.0.1:8000/v1/chat)"
+          test "${health_status}" = "200"
+          test "${unauthorized_status}" = "401"
+
+      - name: Remove smoke container
+        if: always()
+        run: docker rm --force ai-core-ci || true
