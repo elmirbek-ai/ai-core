@@ -7,8 +7,8 @@ not a claim that planned functionality already exists.
 
 | Phase | Name | Status |
 |---:|---|---|
-| 0 | Architecture Freeze | **IN PROGRESS** |
-| 1 | Quality & Security Gate | PLANNED |
+| 0 | Architecture Freeze | COMPLETE |
+| 1 | Quality & Security Gate | **IN PROGRESS** |
 | 2 | Advanced Testing | PLANNED |
 | 3 | Observability Foundation | PLANNED |
 | 4 | Evaluation Framework | PLANNED |
@@ -24,8 +24,7 @@ not a claim that planned functionality already exists.
 | 14 | Deployment Readiness | PLANNED |
 | 15 | Production Deployment | PLANNED |
 
-Phase 0 remains `IN PROGRESS` until the architecture documents and ADRs are
-reviewed and committed.
+**Current active phase: Phase 1 — Quality & Security Gate.**
 
 ## Mandatory roadmap rules
 
