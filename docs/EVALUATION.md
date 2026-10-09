@@ -208,7 +208,8 @@ $env:AI_CORE_EVAL_ALLOW_LIVE = "1"
 python -m app.evaluation.cli run --live --provider groq --model YOUR_ENABLED_MODEL --output-dir eval-results/operator-run
 ```
 
-Only the seven existing provider names are accepted. Existing enablement and
+The seven production provider names and the evaluation-only `openai` candidate
+are accepted. Existing enablement and
 credentials remain required. An evaluation-owned settings copy and registry
 apply the selected model to the provider's configured model field, including
 adapters that ignore a per-call override. Normal application state and settings
@@ -223,6 +224,25 @@ model strings are not persisted. Aliases such as an auto-routed upstream model
 do not establish which underlying model answered; use a concrete operator-known
 model for model-specific evidence. The present provider contract exposes content
 but no reliable usage, so current live cost remains unavailable.
+
+### OpenAI direct candidate (Phase 5)
+
+`--provider openai --model YOUR_EVALUATION_MODEL` selects the registered
+Responses API adapter using the same isolated settings-copy/registry path.
+Set `OPENAI_API_KEY` privately; the model must be supplied by `--model` or
+`OPENAI_MODEL`. There is no implicit model, price catalog or token-usage estimate.
+The dual live guard and CI prohibition still apply. No real OpenAI evaluation
+was performed during candidate onboarding. Registration does not admit OpenAI
+to production routing, primary/fallback configuration or any task chain.
+
+Text and streaming are supported. Images require explicit
+`OPENAI_SUPPORTS_IMAGES=true`, a verified image-capable selected model and the
+existing operator image-mapping guard below. Standard reports do not persist
+operator image URLs or SDK usage/response objects; OpenAI cost remains
+unavailable even with a catalog because this adapter exposes no evaluation usage.
+See [OpenAI candidate](providers/OPENAI_CANDIDATE.md) and
+[pending admission evidence](../evals/admissions/openai/README.md) before
+planning a separately authorized live evaluation.
 
 ### Multimodal asset mapping
 

@@ -9,6 +9,7 @@ from app.llm.providers.groq import GroqProvider
 from app.llm.providers.kilo import KiloProvider
 from app.llm.providers.llm7 import LLM7Provider
 from app.llm.providers.ollama import OllamaProvider
+from app.llm.providers.openai import OpenAIProvider
 from app.llm.providers.openrouter import OpenRouterProvider
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ VALID_PROVIDER_NAMES = frozenset(
         "ollama",
         "kilo",
         "llm7",
+        "openai",
     }
 )
 
@@ -75,6 +77,8 @@ async def create_provider_registry(settings: Settings) -> ProviderRegistry:
     ProviderRegistry._validate_name(settings.llm_primary_provider)
     if settings.llm_fallback_provider is not None:
         ProviderRegistry._validate_name(settings.llm_fallback_provider)
+    if "openai" in {settings.llm_primary_provider, settings.llm_fallback_provider}:
+        raise ValueError("OpenAI candidate is evaluation-only until admission")
     if settings.llm_primary_provider == "gemini":
         raise ValueError("Gemini cannot be configured as the generic primary")
     if settings.llm_fallback_provider == "gemini":
@@ -111,6 +115,8 @@ async def create_provider_registry(settings: Settings) -> ProviderRegistry:
             providers["kilo"] = KiloProvider(settings=settings)
         if settings.llm7_enabled and settings.llm7_api_key:
             providers["llm7"] = LLM7Provider(settings=settings)
+        if settings.openai_api_key is not None:
+            providers["openai"] = OpenAIProvider(settings=settings)
     except Exception:
         await ProviderRegistry(providers).close()
         raise

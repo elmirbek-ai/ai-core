@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+from pydantic import SecretStr
 
 from app.evaluation.loader import load_dataset
 from app.evaluation.models import EvaluationError
@@ -151,6 +152,11 @@ def test_evaluation_model_override_uses_isolated_settings_copy(
     from app.core.config import get_settings
 
     original = get_settings()
+    if provider_name == "openai":
+        original = original.model_copy(
+            update={"openai_api_key": SecretStr("TEST_OPENAI_SECRET_DO_NOT_LOG")}
+        )
+        monkeypatch.setattr("app.core.config.get_settings", lambda: original)
     old_model = getattr(original, MODEL_SETTINGS[provider_name])
     captured = []
     registry = SimpleNamespace(

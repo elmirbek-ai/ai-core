@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     openrouter_timeout_seconds: float = Field(default=30.0, gt=0)
     openrouter_max_retries: int = Field(default=2, ge=0)
 
+    # Evaluation-only candidate: no implicit model or production routing.
+    openai_api_key: SecretStr | None = None
+    openai_model: str | None = None
+    openai_timeout_seconds: float = Field(default=30.0, gt=0)
+    openai_max_retries: int = Field(default=2, ge=0)
+    openai_supports_images: bool = False
+
     gemini_api_key: str | None = None
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
     gemini_model: str = "gemini-3.8-flash"
@@ -111,6 +118,15 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @field_validator("openai_api_key", "openai_model", mode="before")
+    @classmethod
+    def normalize_openai_optional(cls, value: object) -> object:
+        if isinstance(value, SecretStr):
+            value = value.get_secret_value()
+        if isinstance(value, str):
+            return value.strip() or None
+        return value
 
     @field_validator("llm_primary_provider", mode="before")
     @classmethod

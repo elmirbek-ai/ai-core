@@ -31,6 +31,7 @@ EXISTING_PROVIDERS = (
     "ollama",
     "kilo",
     "llm7",
+    "openai",  # Registered candidate; evaluation permission is not admission.
 )
 MODEL_SETTINGS = {
     "groq": "groq_fast_model",
@@ -40,6 +41,7 @@ MODEL_SETTINGS = {
     "ollama": "ollama_model",
     "kilo": "kilo_general_model",
     "llm7": "llm7_general_model",
+    "openai": "openai_model",
 }
 
 
@@ -292,6 +294,13 @@ async def create_live_target(
     from app.llm.registry import create_provider_registry
 
     settings = get_settings()
+    if provider_name == "openai":
+        if settings.openai_api_key is None:
+            raise EvaluationError(
+                "OpenAI candidate is disabled: OPENAI_API_KEY is missing"
+            )
+        if not (model or settings.openai_model):
+            raise EvaluationError("OpenAI evaluation requires --model or OPENAI_MODEL")
     selected_model = validate_model_name(
         model or getattr(settings, MODEL_SETTINGS[provider_name])
     )
