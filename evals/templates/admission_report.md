@@ -11,6 +11,21 @@ must not be presented as live provider evidence.
 - Evidence mode (live, fixture):
 - Review owner / date:
 
+## ZERO-COST GATE (before adapter implementation)
+
+- Selected API/model has permanent $0 eligibility:
+- Free mode needs no payment method / card / paid balance / subscription:
+- Pay-as-you-go and automatic paid overage disabled or impossible:
+- Free quota exhaustion fails closed:
+- Exact selected model is included in free usage:
+- Eligibility does not depend only on trial/promotional credits:
+- Provider evidence location / check date / reviewer (no account secrets):
+- Revalidation procedure / date:
+- Gate decision: PASS / FAIL / NOT_VERIFIED:
+
+FAIL or NOT_VERIFIED blocks onboarding/live evaluation and production admission.
+Null reported cost is unavailable evidence, not proof of free eligibility.
+
 ## Baseline and reference targets
 
 - Production reference provider / model:

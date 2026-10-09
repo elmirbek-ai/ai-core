@@ -34,6 +34,11 @@ available functionality.
    valid choice for local and single-worker deployments.
 10. **Evaluation before optimization.** Provider admission and routing changes
     follow controlled evaluation rather than anecdotal results.
+11. **Permanent zero-cost only.** A provider/model must pass the zero-cost gate
+    before future adapter implementation and live use. No required payment
+    method, paid balance, trial-credit-only eligibility or automatic overage.
+    Free-quota exhaustion must fail closed. See
+    [ZERO_COST_POLICY.md](providers/ZERO_COST_POLICY.md).
 
 ---
 
@@ -50,6 +55,13 @@ AI Core is a provider-agnostic FastAPI LLM gateway with seven provider adapters:
 5. Ollama Cloud
 6. Kilo
 7. LLM7
+
+Adapter presence is not live eligibility. Phase 5 retains the tested rejected
+OpenAI Responses adapter as an archived implementation. Registry/model guards
+exclude rejected or unverified configurations before routing; hosted Ollama and
+historical Kilo defaults currently lack required free-model evidence. Cloudflare
+and LLM7 require operator-confirmed non-billable free modes. Existing task-chain
+order and public API contracts remain unchanged.
 
 The implemented request path is:
 
@@ -82,7 +94,7 @@ versioned datasets and synthetic fixtures under `evals/`, and compatible JSON/
 Markdown evidence reports. Evaluation is separate from production inference;
 existing-provider live runs require explicit dual opt-in. See
 [EVALUATION.md](EVALUATION.md) for scoring, provenance, privacy and limitations.
-Phase 4 remains IN PROGRESS and does not admit providers or change routing.
+Phase 4 is complete; Phase 5 admission follows the mandatory zero-cost gate.
 
 ### Current public API
 
@@ -232,7 +244,8 @@ DeepSeek direct, Mistral direct, Anthropic direct, and xAI direct. They are not
 approved providers. Admission requires the pipeline below:
 
 ```text
-Adapter
+ZERO-COST GATE (reject paid/unverified before implementation)
+  -> Adapter
   -> Contract tests
   -> Security tests
   -> Capability tests

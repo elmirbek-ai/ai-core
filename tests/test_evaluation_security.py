@@ -49,7 +49,7 @@ def test_raw_provider_error_environment_secret_and_authorization_never_persist(
             + SECRET
         )
     )
-    target = ExistingProviderTarget(provider, dataset, "selected-model", live=True)
+    target = ExistingProviderTarget(provider, dataset, "openai/gpt-oss-20b", live=True)
     report = asyncio.run(
         run_evaluation(replace(dataset, cases=(dataset.cases[0],)), target, RunConfig())
     )
@@ -69,7 +69,7 @@ def test_generated_response_content_never_persists_in_standard_reports(
     monkeypatch.delenv("CI", raising=False)
     dataset = load_dataset()
     provider = Provider(content=SECRET + "_RESPONSE")
-    target = ExistingProviderTarget(provider, dataset, "selected-model", live=True)
+    target = ExistingProviderTarget(provider, dataset, "openai/gpt-oss-20b", live=True)
     report = asyncio.run(
         run_evaluation(
             replace(dataset, cases=(dataset.cases[0],)),
@@ -111,7 +111,7 @@ def test_malformed_provider_output_becomes_safe_failure(streaming, monkeypatch):
     monkeypatch.delenv("CI", raising=False)
     dataset = load_dataset()
     provider = Provider(content=None)
-    target = ExistingProviderTarget(provider, dataset, "selected-model", live=True)
+    target = ExistingProviderTarget(provider, dataset, "openai/gpt-oss-20b", live=True)
     report = asyncio.run(
         run_evaluation(
             replace(dataset, cases=(dataset.cases[0],)),
@@ -127,7 +127,7 @@ def test_partial_stream_failure_retains_ttft_but_no_quality_or_response(monkeypa
     monkeypatch.delenv("CI", raising=False)
     dataset = load_dataset()
     provider = Provider(content=SECRET, error=LLMUpstreamError(SECRET + "_BODY"))
-    target = ExistingProviderTarget(provider, dataset, "selected-model", live=True)
+    target = ExistingProviderTarget(provider, dataset, "openai/gpt-oss-20b", live=True)
     report = asyncio.run(
         run_evaluation(
             replace(dataset, cases=(dataset.cases[0],)),

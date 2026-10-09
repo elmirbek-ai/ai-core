@@ -1,9 +1,18 @@
 # OpenAI direct: Phase 5 candidate 1
 
-Status: **READY FOR LIVE EVALUATION**. Admission decision: **PENDING**.
-This records adapter/evaluation readiness under mocks, not evidence of live
-model quality, latency, availability or cost. No real OpenAI inference request
-was made during onboarding. Phase 5 remains IN PROGRESS.
+Status: **REJECTED — ZERO-COST GATE FAILED**. Final decision: **REJECTED**.
+Decision date: **2026-10-09**. Phase 5 remains IN PROGRESS.
+
+Direct OpenAI API requires paid API usage / billing eligibility and does not
+satisfy AI Core's mandatory permanent zero-cost provider policy. Trial or
+promotional credits alone do not qualify. This is a reviewed business/admission
+decision, not evidence that the adapter is broken.
+
+The separately authorized historical smoke made exactly one non-streaming
+attempt with gpt-6-luna and failed with safe category rate_limit. That error alone
+proves neither pricing nor an adapter defect. No further OpenAI live evaluation
+is allowed under current policy. The tested Responses adapter is retained as a
+rejected-candidate implementation. See [zero-cost policy](ZERO_COST_POLICY.md).
 
 ## Adapter and API choice
 
@@ -32,10 +41,11 @@ final cleanup boundary. No content/delta logging or per-token timing exists.
 | `OPENAI_MAX_RETRIES` | `2`; must be nonnegative |
 | `OPENAI_SUPPORTS_IMAGES` | `false`; explicit adapter image opt-in |
 
-`.env.example` contains blank key/model placeholders only. Key absence does not
-prevent normal application startup and does not construct an OpenAI client.
-With a key, registry construction is allowed without a model; an evaluation
-call still requires `--model` or `OPENAI_MODEL`. Existing application credential
+`.env.example` contains blank key/model placeholders only. OpenAI key absence does not
+prevent normal application startup. Registry construction is blocked for this
+rejected candidate even when key/model are configured. Evaluation rejects OpenAI
+before reading settings or constructing a client; model/live flags cannot bypass
+the zero-cost gate. Settings remain for archived contract tests only. Existing application credential
 requirements for other providers remain unchanged. Never place credentials in
 model identifiers, report labels or asset maps. Models are bounded ASCII labels;
 URL/control-character labels are rejected. An evaluation override changes only
@@ -80,49 +90,30 @@ configuration and tested conversion, not inference from a model name; the
 operator must verify that the selected model supports images before a live run.
 Audio, files, tools, realtime and model-specific context limits are not declared.
 
-Registry recognizes `openai` only as a candidate. Generic primary/fallback
-configuration explicitly rejects it until admission. Defaults remain Groq and
+Registry recognizes the archived `openai` name but never enables its client.
+Generic primary/fallback configuration explicitly rejects it. Defaults remain Groq and
 OpenRouter. All GENERAL/FAST/REASONING/CODE/LONG_CONTEXT/MULTIMODAL and other
 existing task chains preserve their exact provider order. Router, budgets,
-circuits, production concurrency and observability source are unchanged.
+circuits, production concurrency and observability source are unchanged; registry
+cost guards now exclude ineligible configurations before routing.
 No dedicated production concurrency policy is added: evaluation is sequential
 and the candidate is not production-routed. Existing dynamic telemetry names
 need no OpenAI allow-list extension.
 
-## Separately authorized evaluation procedure
+## Live evaluation prohibition
 
-The following commands are instructions for a future operator-approved run;
-they were not executed against OpenAI during onboarding.
+OpenAI is not eligible for production or live evaluation under current policy.
+Registry excludes it even with a key. The CLI retains the provider name to return
+`OpenAI direct is rejected: ZERO-COST GATE FAILED` safely. Both live opt-ins are
+still required for other eligible providers; neither flag overrides rejection.
+Programmatic ExistingProviderTarget wrappers also reject OpenAI before calls.
+Do not call the archived adapter directly in a live script or rerun the smoke.
 
-1. Review this candidate, credential handling, selected model capabilities and
-   dataset limitations; authorize API spend separately.
-2. Configure `OPENAI_API_KEY` privately. Choose one concrete model with
-   `OPENAI_MODEL` or the override below. Never commit the key.
-3. Validate datasets without network: `python -m app.evaluation.cli validate`.
-4. Outside CI, enable the live guard and explicitly select the candidate:
-
-   ```powershell
-   $env:AI_CORE_EVAL_ALLOW_LIVE = "1"
-   python -m app.evaluation.cli run --live --provider openai --model YOUR_EVALUATION_MODEL --output-dir eval-results/openai/non-stream
-   python -m app.evaluation.cli run --live --provider openai --model YOUR_EVALUATION_MODEL --streaming --output-dir eval-results/openai/stream
-   ```
-
-5. For image evidence, verify model support, set `OPENAI_SUPPORTS_IMAGES=true`,
-   and supply `--image-mapping PATH` with the existing explicit HTTPS mapping.
-   URLs must have no credentials, query strings or fragments. The framework
-   does not fetch external images in unit tests or fixture mode. Reports store
-   only the mapping hash. Missing mappings block image calls; with image support
-   disabled those cases are capability skips, not model failures.
-6. Collect comparable reference-provider evidence with matching dataset/hash,
-   case set, scorer/configuration, mode and asset mapping. Compare non-stream
-   with non-stream and streaming with streaming. Reports do not alter routing.
-7. Complete the admission template and obtain review before any production
-   admission. Revoke the live opt-in when finished.
-
-Both `--live` and `AI_CORE_EVAL_ALLOW_LIVE=1` are required; enabled CI rejects
-execution. Guards run before registry construction and again before calls.
-Missing key/model produces controlled configuration errors. Positive test paths
-inject mocked clients/providers; no test contacts `api.openai.com`.
+Network-free adapter contract/security tests remain valid. No provider inference,
+pricing API, account/billing change or credit purchase occurs in this audit.
+Reconsideration would require a reviewed permanent no-payment/no-overage offering
+and explicit policy change; buying credits or retrying rate_limit does not qualify.
+Next eligible Phase 5 candidate is Mistral direct, not another OpenAI model.
 
 ## Usage, cost and evidence limitations
 
@@ -135,12 +126,12 @@ hardcoded OpenAI prices or committed price catalog is added. Future clean
 evaluation-only reliable usage would still require matching versioned prices.
 
 Unit/security tests prove contract conversion, safe parsing, cleanup, error
-classification, registry isolation and evaluation readiness. They do not prove
+classification, registry isolation and historical evaluation integration. They do not prove
 live quality or capability at a chosen model. Lexical scorers remain quality and
 hallucination proxies with the limitations documented in `docs/EVALUATION.md`.
-Live evidence is still required across languages/domains, latency, TTFT,
-reliability and optional reliable usage/cost. See the pending
-[admission evidence checklist](../../evals/admissions/openai/README.md).
+Further OpenAI live evidence is not requested while the zero-cost gate fails.
+See the rejected
+[admission decision record](../../evals/admissions/openai/README.md).
 
 ## Official API references
 

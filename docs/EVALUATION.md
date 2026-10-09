@@ -1,6 +1,6 @@
 # Evaluation framework
 
-Phase 4 is **IN PROGRESS** pending review, commit and CI. The framework provides
+Phase 4 is **COMPLETE**; Phase 5 is active as recorded in ROADMAP.md. The framework provides
 versioned, deterministic offline evidence collection. It does not add providers,
 change routing, admit candidates, expose an API, or alter production inference,
 authentication, rate limits, budgets, circuits, concurrency or observability.
@@ -208,9 +208,12 @@ $env:AI_CORE_EVAL_ALLOW_LIVE = "1"
 python -m app.evaluation.cli run --live --provider groq --model YOUR_ENABLED_MODEL --output-dir eval-results/operator-run
 ```
 
-The seven production provider names and the evaluation-only `openai` candidate
-are accepted. Existing enablement and
-credentials remain required. An evaluation-owned settings copy and registry
+Registered provider names are accepted as CLI arguments, including archived
+`openai` for a controlled rejection. Name recognition is not live permission.
+The mandatory [zero-cost gate](providers/ZERO_COST_POLICY.md) checks the selected
+model before registry creation and before each call. OpenAI is rejected; hosted
+Ollama and historical Kilo defaults are NOT_VERIFIED and blocked. Cloudflare and
+LLM7 need explicit verified free-mode conditions in addition to credentials. An evaluation-owned settings copy and registry
 apply the selected model to the provider's configured model field, including
 adapters that ignore a per-call override. Normal application state and settings
 are not modified. All registry clients close after the run.
@@ -225,24 +228,33 @@ do not establish which underlying model answered; use a concrete operator-known
 model for model-specific evidence. The present provider contract exposes content
 but no reliable usage, so current live cost remains unavailable.
 
-### OpenAI direct candidate (Phase 5)
+### Zero-cost gate and OpenAI rejection (Phase 5)
 
-`--provider openai --model YOUR_EVALUATION_MODEL` selects the registered
-Responses API adapter using the same isolated settings-copy/registry path.
-Set `OPENAI_API_KEY` privately; the model must be supplied by `--model` or
-`OPENAI_MODEL`. There is no implicit model, price catalog or token-usage estimate.
-The dual live guard and CI prohibition still apply. No real OpenAI evaluation
-was performed during candidate onboarding. Registration does not admit OpenAI
-to production routing, primary/fallback configuration or any task chain.
+Production and live evaluations may only use permanent zero-cost models in
+non-billable free modes. Trial credits, paid balance, subscriptions, required
+cards and paid overage do not qualify. A null cost metric is missing usage/price
+evidence, not proof of zero cost. Synthetic paid-price fixtures remain valid
+network-free arithmetic demonstrations and never admit a live paid model.
 
-Text and streaming are supported. Images require explicit
-`OPENAI_SUPPORTS_IMAGES=true`, a verified image-capable selected model and the
-existing operator image-mapping guard below. Standard reports do not persist
-operator image URLs or SDK usage/response objects; OpenAI cost remains
-unavailable even with a catalog because this adapter exposes no evaluation usage.
-See [OpenAI candidate](providers/OPENAI_CANDIDATE.md) and
-[pending admission evidence](../evals/admissions/openai/README.md) before
-planning a separately authorized live evaluation.
+`--provider openai` is retained for backward-compatible controlled CLI errors,
+but always fails the zero-cost gate before settings/key access or registry
+creation. Registry never activates OpenAI, even with a key. Programmatic target
+wrappers also reject it. Dual live opt-in and model overrides cannot bypass this.
+The Responses adapter stays archived and tested; do not call it directly live.
+See [rejected OpenAI candidate](providers/OPENAI_CANDIDATE.md) and
+[admission decision](../evals/admissions/openai/README.md).
+
+Model allow-lists and conditional account requirements are documented in
+[ZERO_COST_POLICY.md](providers/ZERO_COST_POLICY.md). Groq's reviewed gpt-oss
+models, OpenRouter free routes and Gemini's reviewed Free Tier model remain.
+Cloudflare/LLM7 verification flags default false and attest non-billable selected
+model/account/quota behavior; they do not remotely change billing. Kilo's three
+historical defaults stay unchanged and blocked unless all configured task models
+are reviewed free choices; currently only explicit `kilo-auto/free` is recognized.
+Unsuffixed catalog-priced $0 models need separately reviewed offline evidence.
+Hosted Ollama has no verified starter model here and stays blocked. Revalidate
+account/model evidence before any live run. No pricing/catalog API is called at
+runtime; no fallback to paid models is allowed.
 
 ### Multimodal asset mapping
 

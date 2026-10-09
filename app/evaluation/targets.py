@@ -22,6 +22,7 @@ from app.evaluation.models import (
 )
 from app.llm.base import BaseLLMProvider
 from app.llm.capabilities import ProviderCapabilities
+from app.llm.cost_policy import free_mode_verified, require_zero_cost_model
 
 EXISTING_PROVIDERS = (
     "groq",
@@ -31,7 +32,7 @@ EXISTING_PROVIDERS = (
     "ollama",
     "kilo",
     "llm7",
-    "openai",  # Registered candidate; evaluation permission is not admission.
+    "openai",  # Archived name for controlled rejection, never live permission.
 )
 MODEL_SETTINGS = {
     "groq": "groq_fast_model",
@@ -215,6 +216,7 @@ class ExistingProviderTarget:
         *,
         live: bool,
         image_mapping: dict[str, str] | None = None,
+        zero_cost_free_mode_verified: bool = False,
     ) -> None:
         require_live(live)
         if provider.name not in EXISTING_PROVIDERS:
@@ -227,9 +229,18 @@ class ExistingProviderTarget:
             raise EvaluationError(
                 "Evaluation model must match the configured adapter model"
             )
+        try:
+            require_zero_cost_model(
+                provider.name, model, free_mode_verified=zero_cost_free_mode_verified
+            )
+        except ValueError:
+            raise EvaluationError(
+                "Evaluation target failed the mandatory zero-cost gate"
+            ) from None
         self._provider = provider
         self._dataset = dataset
         self._live = live
+        self._zero_cost_free_mode_verified = zero_cost_free_mode_verified
         validate_image_mapping(image_mapping if image_mapping is not None else {})
         self._image_mapping = dict(image_mapping or {})
         self.asset_mapping_hash = (
@@ -242,6 +253,16 @@ class ExistingProviderTarget:
 
     def _messages(self, case: EvaluationCase) -> list[dict[str, Any]]:
         require_live(self._live)
+        try:
+            require_zero_cost_model(
+                self.provider,
+                self.model,
+                free_mode_verified=self._zero_cost_free_mode_verified,
+            )
+        except ValueError:
+            raise EvaluationError(
+                "Evaluation target failed the mandatory zero-cost gate"
+            ) from None
         messages = self._dataset.messages(case)
         for message in messages:
             if isinstance(message["content"], list):
@@ -290,20 +311,24 @@ async def create_live_target(
     require_live(live)
     if provider_name not in EXISTING_PROVIDERS:
         raise EvaluationError("Evaluation supports only existing providers")
+    if provider_name == "openai":
+        raise EvaluationError("OpenAI direct is rejected: ZERO-COST GATE FAILED")
     from app.core.config import get_settings
     from app.llm.registry import create_provider_registry
 
     settings = get_settings()
-    if provider_name == "openai":
-        if settings.openai_api_key is None:
-            raise EvaluationError(
-                "OpenAI candidate is disabled: OPENAI_API_KEY is missing"
-            )
-        if not (model or settings.openai_model):
-            raise EvaluationError("OpenAI evaluation requires --model or OPENAI_MODEL")
     selected_model = validate_model_name(
         model or getattr(settings, MODEL_SETTINGS[provider_name])
     )
+    verified = free_mode_verified(settings, provider_name)
+    try:
+        require_zero_cost_model(
+            provider_name, selected_model, free_mode_verified=verified
+        )
+    except ValueError:
+        raise EvaluationError(
+            "Evaluation target failed the mandatory zero-cost gate"
+        ) from None
     # Several existing adapters intentionally use their configured model. A
     # dedicated registry/settings copy supports targeting without editing them.
     settings = settings.model_copy(
@@ -315,7 +340,12 @@ async def create_live_target(
         if provider is None:
             raise EvaluationError("Requested evaluation provider is not enabled")
         target = ExistingProviderTarget(
-            provider, dataset, selected_model, live=live, image_mapping=image_mapping
+            provider,
+            dataset,
+            selected_model,
+            live=live,
+            image_mapping=image_mapping,
+            zero_cost_free_mode_verified=verified,
         )
         target._registry = registry
         return target

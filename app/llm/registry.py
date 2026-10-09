@@ -3,6 +3,7 @@ import logging
 
 from app.core.config import Settings
 from app.llm.base import BaseLLMProvider
+from app.llm.cost_policy import configuration_allowed
 from app.llm.providers.cloudflare import CloudflareProvider
 from app.llm.providers.gemini import GeminiProvider
 from app.llm.providers.groq import GroqProvider
@@ -78,7 +79,7 @@ async def create_provider_registry(settings: Settings) -> ProviderRegistry:
     if settings.llm_fallback_provider is not None:
         ProviderRegistry._validate_name(settings.llm_fallback_provider)
     if "openai" in {settings.llm_primary_provider, settings.llm_fallback_provider}:
-        raise ValueError("OpenAI candidate is evaluation-only until admission")
+        raise ValueError("OpenAI direct is rejected: ZERO-COST GATE FAILED")
     if settings.llm_primary_provider == "gemini":
         raise ValueError("Gemini cannot be configured as the generic primary")
     if settings.llm_fallback_provider == "gemini":
@@ -102,21 +103,34 @@ async def create_provider_registry(settings: Settings) -> ProviderRegistry:
 
     providers: dict[str, BaseLLMProvider] = {}
     try:
-        providers["groq"] = GroqProvider(settings=settings)
-        if settings.openrouter_api_key:
-            providers["openrouter"] = OpenRouterProvider(settings=settings)
-        if settings.gemini_api_key:
-            providers["gemini"] = GeminiProvider(settings=settings)
-        if settings.cloudflare_api_token and settings.cloudflare_account_id:
-            providers["cloudflare"] = CloudflareProvider(settings=settings)
-        if settings.ollama_api_key:
-            providers["ollama"] = OllamaProvider(settings=settings)
-        if settings.kilo_enabled:
-            providers["kilo"] = KiloProvider(settings=settings)
-        if settings.llm7_enabled and settings.llm7_api_key:
-            providers["llm7"] = LLM7Provider(settings=settings)
-        if settings.openai_api_key is not None:
-            providers["openai"] = OpenAIProvider(settings=settings)
+        candidates = (
+            ("groq", GroqProvider, True),
+            ("openrouter", OpenRouterProvider, bool(settings.openrouter_api_key)),
+            ("gemini", GeminiProvider, bool(settings.gemini_api_key)),
+            (
+                "cloudflare",
+                CloudflareProvider,
+                bool(settings.cloudflare_api_token and settings.cloudflare_account_id),
+            ),
+            ("ollama", OllamaProvider, bool(settings.ollama_api_key)),
+            ("kilo", KiloProvider, settings.kilo_enabled),
+            (
+                "llm7",
+                LLM7Provider,
+                bool(settings.llm7_enabled and settings.llm7_api_key),
+            ),
+            ("openai", OpenAIProvider, settings.openai_api_key is not None),
+        )
+        for name, factory, enabled in candidates:
+            if not enabled:
+                continue
+            if not configuration_allowed(settings, name):
+                if name == settings.llm_primary_provider:
+                    raise ValueError(
+                        "Primary provider failed the mandatory zero-cost gate"
+                    )
+                continue
+            providers[name] = factory(settings=settings)
     except Exception:
         await ProviderRegistry(providers).close()
         raise

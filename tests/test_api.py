@@ -243,10 +243,15 @@ def test_lifespan_closes_all_enabled_providers(monkeypatch) -> None:
         gemini_api_key="gemini-test-key",
         cloudflare_api_token="cloudflare-test-token",
         cloudflare_account_id="test-account-id",
+        cloudflare_zero_cost_verified=True,
         ollama_api_key="ollama-test-key",
         kilo_enabled=True,
+        kilo_general_model="kilo-auto/free",
+        kilo_code_model="kilo-auto/free",
+        kilo_long_context_model="kilo-auto/free",
         llm7_enabled=True,
         llm7_api_key="llm7-test-key",
+        llm7_zero_cost_verified=True,
     )
     monkeypatch.setattr(main_module, "settings", settings)
     monkeypatch.setattr(
@@ -292,7 +297,7 @@ def test_lifespan_closes_all_enabled_providers(monkeypatch) -> None:
     openrouter.close.assert_awaited_once()
     gemini.close.assert_awaited_once()
     cloudflare.close.assert_awaited_once()
-    ollama.close.assert_awaited_once()
+    ollama.close.assert_not_awaited()
     kilo.close.assert_awaited_once()
     llm7.close.assert_awaited_once()
 

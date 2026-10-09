@@ -4,7 +4,6 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-from pydantic import SecretStr
 
 from app.evaluation.loader import load_dataset
 from app.evaluation.models import EvaluationError
@@ -108,7 +107,9 @@ def test_provider_wrapper_calls_existing_contract_without_usage(streaming, live_
     async def exercise():
         dataset = load_dataset()
         provider = Provider()
-        target = ExistingProviderTarget(provider, dataset, "selected-model", live=True)
+        target = ExistingProviderTarget(
+            provider, dataset, "openai/gpt-oss-20b", live=True
+        )
         if streaming:
             output = [chunk async for chunk in target.stream(dataset.cases[0])]
             assert [chunk.content for chunk in output] == ["", "safe"]
@@ -118,7 +119,7 @@ def test_provider_wrapper_calls_existing_contract_without_usage(streaming, live_
             assert output.content == "safe"
             assert output.input_tokens is output.output_tokens is None
             assert not output.usage_reliable
-        assert provider.selected_model == target.model == "selected-model"
+        assert provider.selected_model == target.model == "openai/gpt-oss-20b"
         assert provider.messages == dataset.messages(dataset.cases[0])
         await target.close()
         assert provider.closed
@@ -130,7 +131,7 @@ def test_provider_wrapper_calls_existing_contract_without_usage(streaming, live_
 def test_revoked_opt_in_blocks_each_provider_call(streaming, live_opt_in, monkeypatch):
     dataset = load_dataset()
     provider = Provider()
-    target = ExistingProviderTarget(provider, dataset, "selected-model", live=True)
+    target = ExistingProviderTarget(provider, dataset, "openai/gpt-oss-20b", live=True)
     monkeypatch.delenv("AI_CORE_EVAL_ALLOW_LIVE")
 
     async def exercise():
@@ -145,18 +146,28 @@ def test_revoked_opt_in_blocks_each_provider_call(streaming, live_opt_in, monkey
     assert provider.calls == 0
 
 
-@pytest.mark.parametrize("provider_name", list(MODEL_SETTINGS))
+@pytest.mark.parametrize(
+    "provider_name",
+    [name for name in MODEL_SETTINGS if name not in {"openai", "ollama"}],
+)
 def test_evaluation_model_override_uses_isolated_settings_copy(
     provider_name, live_opt_in, monkeypatch
 ):
     from app.core.config import get_settings
 
     original = get_settings()
-    if provider_name == "openai":
-        original = original.model_copy(
-            update={"openai_api_key": SecretStr("TEST_OPENAI_SECRET_DO_NOT_LOG")}
-        )
-        monkeypatch.setattr("app.core.config.get_settings", lambda: original)
+    original = original.model_copy(
+        update={"cloudflare_zero_cost_verified": True, "llm7_zero_cost_verified": True}
+    )
+    monkeypatch.setattr("app.core.config.get_settings", lambda: original)
+    selected_model = {
+        "groq": "openai/gpt-oss-120b",
+        "openrouter": "test-provider/model:free",
+        "gemini": "gemini-3.8-flash",
+        "cloudflare": "cf/openai/gpt-oss-120b",
+        "kilo": "kilo-auto/free",
+        "llm7": "gpt-oss:20b",
+    }[provider_name]
     old_model = getattr(original, MODEL_SETTINGS[provider_name])
     captured = []
     registry = SimpleNamespace(
@@ -171,15 +182,15 @@ def test_evaluation_model_override_uses_isolated_settings_copy(
 
     async def exercise():
         target = await create_live_target(
-            load_dataset(), provider_name, "evaluation-model", live=True
+            load_dataset(), provider_name, selected_model, live=True
         )
         assert target.provider == provider_name
-        assert target.model == "evaluation-model"
+        assert target.model == selected_model
         await target.close()
 
     asyncio.run(exercise())
     assert captured[0] is not original
-    assert getattr(captured[0], MODEL_SETTINGS[provider_name]) == "evaluation-model"
+    assert getattr(captured[0], MODEL_SETTINGS[provider_name]) == selected_model
     assert getattr(original, MODEL_SETTINGS[provider_name]) == old_model
     registry.close.assert_awaited_once()
 
@@ -227,7 +238,7 @@ def test_live_images_require_explicit_detached_mapping(live_opt_in):
     dataset = load_dataset()
     case = next(case for case in dataset.cases if case.domain == "multimodal")
     provider = Provider()
-    missing = ExistingProviderTarget(provider, dataset, "selected-model", live=True)
+    missing = ExistingProviderTarget(provider, dataset, "openai/gpt-oss-20b", live=True)
     with pytest.raises(EvaluationError, match="image asset mappings"):
         asyncio.run(missing.chat(case))
     assert provider.calls == 0
@@ -236,7 +247,7 @@ def test_live_images_require_explicit_detached_mapping(live_opt_in):
     ]
     mapping = {placeholder: "https://assets.invalid/approved.png"}
     target = ExistingProviderTarget(
-        provider, dataset, "selected-model", live=True, image_mapping=mapping
+        provider, dataset, "openai/gpt-oss-20b", live=True, image_mapping=mapping
     )
     mapping[placeholder] = "changed"
     asyncio.run(target.chat(case))
@@ -305,5 +316,5 @@ def test_direct_target_cannot_mislabel_fixed_model_adapter(live_opt_in):
     assert provider.calls == 0
     with pytest.raises(EvaluationError, match="only existing"):
         ExistingProviderTarget(
-            Provider("new-provider"), load_dataset(), "selected-model", live=True
+            Provider("new-provider"), load_dataset(), "openai/gpt-oss-20b", live=True
         )

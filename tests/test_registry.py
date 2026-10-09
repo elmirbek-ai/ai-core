@@ -95,6 +95,7 @@ def test_cloudflare_with_token_and_account_id_is_enabled(monkeypatch) -> None:
         groq_api_key="test-key",
         cloudflare_api_token="cloudflare-test-token",
         cloudflare_account_id="test-account-id",
+        cloudflare_zero_cost_verified=True,
     )
 
     registry = asyncio.run(create_provider_registry(settings))
@@ -140,7 +141,7 @@ def test_cloudflare_with_incomplete_credentials_is_disabled(
     cloudflare_type.assert_not_called()
 
 
-def test_ollama_with_api_key_is_enabled(monkeypatch) -> None:
+def test_ollama_with_api_key_remains_unverified_and_disabled(monkeypatch) -> None:
     groq = SimpleNamespace(name="groq", close=AsyncMock())
     ollama = SimpleNamespace(name="ollama", close=AsyncMock())
     monkeypatch.setattr(
@@ -159,8 +160,8 @@ def test_ollama_with_api_key_is_enabled(monkeypatch) -> None:
 
     registry = asyncio.run(create_provider_registry(settings))
 
-    assert registry.is_enabled("ollama")
-    assert registry.get_enabled("ollama") is ollama
+    assert not registry.is_enabled("ollama")
+    assert registry.get_enabled("ollama") is None
 
 
 def test_ollama_without_api_key_is_disabled(monkeypatch) -> None:
@@ -217,6 +218,9 @@ def test_kilo_is_enabled_only_with_explicit_opt_in(monkeypatch) -> None:
         _env_file=None,
         groq_api_key="test-key",
         kilo_enabled=True,
+        kilo_general_model="kilo-auto/free",
+        kilo_code_model="kilo-auto/free",
+        kilo_long_context_model="kilo-auto/free",
     )
 
     registry = asyncio.run(create_provider_registry(settings))
@@ -257,6 +261,7 @@ def test_llm7_is_enabled_with_opt_in_and_key(monkeypatch) -> None:
         groq_api_key="test-key",
         llm7_enabled=True,
         llm7_api_key="llm7-test-key",
+        llm7_zero_cost_verified=True,
     )
 
     registry = asyncio.run(create_provider_registry(settings))
@@ -351,16 +356,21 @@ def test_all_enabled_providers_initialize_once_and_close_once(monkeypatch) -> No
         gemini_api_key="test-key",
         cloudflare_api_token="test-token",
         cloudflare_account_id="test-account",
+        cloudflare_zero_cost_verified=True,
         ollama_api_key="test-key",
         kilo_enabled=True,
+        kilo_general_model="kilo-auto/free",
+        kilo_code_model="kilo-auto/free",
+        kilo_long_context_model="kilo-auto/free",
         llm7_enabled=True,
         llm7_api_key="test-key",
+        llm7_zero_cost_verified=True,
     )
 
     registry = asyncio.run(create_provider_registry(settings))
     asyncio.run(registry.close())
 
-    assert set(created) == set(provider_types.values())
+    assert set(created) == set(provider_types.values()) - {"ollama"}
     assert all(registry.is_enabled(name) for name in created)
     for provider in created.values():
         provider.close.assert_awaited_once()
@@ -439,6 +449,9 @@ def test_kilo_startup_failure_closes_previously_created_providers(
         _env_file=None,
         groq_api_key="test-key",
         kilo_enabled=True,
+        kilo_general_model="kilo-auto/free",
+        kilo_code_model="kilo-auto/free",
+        kilo_long_context_model="kilo-auto/free",
     )
 
     with pytest.raises(RuntimeError, match="constructor failed"):
@@ -465,6 +478,7 @@ def test_llm7_startup_failure_closes_previously_created_providers(
         groq_api_key="test-key",
         llm7_enabled=True,
         llm7_api_key="llm7-test-key",
+        llm7_zero_cost_verified=True,
     )
 
     with pytest.raises(RuntimeError, match="constructor failed"):

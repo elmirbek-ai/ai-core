@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     cloudflare_model: str = "cf/openai/gpt-oss-120b"
     cloudflare_timeout_seconds: float = Field(default=30.0, gt=0)
     cloudflare_max_retries: int = Field(default=2, ge=0)
+    cloudflare_zero_cost_verified: bool = False
 
     ollama_api_key: str | None = None
     ollama_base_url: str = Field(default="https://ollama.com", min_length=1)
@@ -87,6 +88,7 @@ class Settings(BaseSettings):
     llm7_code_model: str = Field(default="gpt-oss:20b", min_length=1)
     llm7_timeout_seconds: float = Field(default=60.0, gt=0)
     llm7_max_retries: int = Field(default=1, ge=0)
+    llm7_zero_cost_verified: bool = False
 
     llm_circuit_breaker_enabled: bool = True
     llm_circuit_failure_threshold: int = Field(default=3, ge=1)

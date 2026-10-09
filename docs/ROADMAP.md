@@ -122,6 +122,11 @@ compared where applicable; an admission report template exists.
 **Goal:** Evaluate provider candidates one at a time and admit only measurable
 improvements.
 
+**Mandatory admission gate:** ZERO-COST GATE runs before future adapter
+implementation. Only permanent $0 modes with no required payment method or
+automatic overage qualify; free-quota exhaustion must fail closed. Trial credits
+alone are insufficient. See [zero-cost policy](providers/ZERO_COST_POLICY.md).
+
 **Preferred evaluation order:**
 
 1. OpenAI direct
@@ -131,6 +136,12 @@ improvements.
 5. xAI direct
 
 This is evaluation order, not a guaranteed production ranking or admission list.
+
+**Current candidate decisions:** OpenAI direct is REJECTED (ZERO-COST GATE);
+DeepSeek direct is REJECTED BEFORE ADAPTER; Mistral direct is NEXT ELIGIBLE
+CANDIDATE; Anthropic direct and xAI direct are REJECTED BEFORE ADAPTER. These
+decisions do not close Phase 5 or admit Mistral. Full records and prerequisites
+are in the zero-cost policy.
 
 **Exit criteria:** Each candidate has adapter contract, security, capability,
 latency, quality, and cost results; an explicit admit/reject decision is

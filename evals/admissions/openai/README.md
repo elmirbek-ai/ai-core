@@ -1,54 +1,45 @@
-# Candidate 1: OpenAI direct
+# Candidate 1: OpenAI direct — admission decision
 
-Status: **READY FOR LIVE EVALUATION**.
-Final decision: **PENDING**.
-Phase 5: **IN PROGRESS**.
+Status: **REJECTED — ZERO-COST GATE FAILED**.
+Final decision: **REJECTED**.
+Decision date: **2026-10-09**.
+Phase 5: **IN PROGRESS**. Next eligible candidate: **Mistral direct**.
 
-This is an onboarding evidence inventory. No live OpenAI evaluation, provider
-admission, routing change, ADMIT or REJECT decision has occurred.
+## Decision and basis
 
-## Available evidence
+Direct OpenAI API requires paid API usage / billing eligibility and does not
+satisfy AI Core's mandatory permanent zero-cost provider policy. Trial or
+promotional credits alone do not satisfy the gate. This is the reviewed product
+requirement, not a conclusion inferred from a rate-limit error.
 
-- Responses API adapter implements the existing BaseLLMProvider contract.
-- Mock-based tests cover text/role/image conversion, aggregate output parsing,
-  stream events, malformed payloads, safe errors and cancellation/client cleanup.
-- Text/streaming capabilities are declared; images are explicitly opt-in and
-  supported by conversion tests, with selected model capability still to verify.
-- Optional SecretStr key, blank normalization, explicit model and reusable client.
-- Registry enablement and primary/fallback exclusion are tested. Every current
-  production task-chain order remains unchanged.
-- Evaluation-only provider/model targeting uses the existing registry and a
-  settings copy. Dual live opt-in, CI prohibition and image-mapping guards remain.
-- Report/log/CLI security tests reject fake secret leakage. Standard reports omit
-  raw output/errors and operator image URLs. No network tests or inference spend.
+The separate authorized smoke made exactly one non-streaming gpt-6-luna attempt,
+FAILED with safe category rate_limit. The smoke does not establish pricing or
+prove that the Responses adapter is broken. No further live OpenAI request is
+allowed under current zero-cost policy.
 
-## Evidence still required
+## Retained evidence
 
-- A separately authorized live run with selected model and safe provenance.
-- Comparable reference targets and matching dataset version/hash/case set,
-  scorer configuration, mode/repetitions and image mapping where applicable.
-- General quality and instruction-following evidence.
-- Kyrgyz, Russian and English language evidence.
-- Reasoning final-answer correctness and code syntax/constraint evidence.
-- Translation across dataset language pairs.
-- Summarization, extraction and groundedness/hallucination proxy evidence.
-- Long-context retrieval and instruction retention.
-- Multimodal evidence if images are enabled, plus verified model capability and
-  operator asset mapping correctness; otherwise explicitly record skips.
-- Non-stream latency and streaming TTFT/duration.
-- Reliability/failure rates with categorized errors and capability coverage.
-- Actual reliable token usage if a clean evaluation-only mechanism becomes
-  available; current token usage is unavailable.
-- Cost only with reliable usage plus a matching versioned/operator price catalog;
-  current cost is unavailable and no OpenAI prices are supplied.
-- Security, data-handling and operational limitations reviewed for the model.
+- Responses API adapter preserves BaseLLMProvider and public API contracts.
+- Network-free tests cover text/image conversion, output parsing, safe SDK
+  errors, streaming, cancellation and cleanup.
+- Archived optional SecretStr key/model configuration remains; no key is required.
+- Production task priority lists remain unchanged and exclude OpenAI.
+- Registry does not enable OpenAI even when key/model are configured.
+- CLI and programmatic evaluation targets reject OpenAI before a provider call.
+- Dual live flags cannot bypass this rejection. Adapter code is not deleted.
 
-## Decision procedure
+## Policy boundary and reconsideration
 
-Use [the admission report template](../../templates/admission_report.md) after
-collecting live evidence. Keep candidate status and decision distinct. A reviewed
-admission decision is required before production routing or provider priorities
-change. Fixture/mock outputs cannot substitute for live provider evidence.
+No additional live quality/cost evidence is requested while the zero-cost gate
+fails. Credit purchase, billing setup, model switching or smoke retries do not
+remedy permanent-free eligibility. Reconsideration requires a reviewed permanent
+no-payment/no-overage offering and explicit policy change before any live use.
 
-Adapter/configuration and future operator procedure:
-[OpenAI candidate documentation](../../../docs/providers/OPENAI_CANDIDATE.md).
+Candidate order is preserved: OpenAI rejected; DeepSeek rejected before adapter;
+Mistral next eligible; Anthropic and xAI rejected before adapter. Mistral has no
+adapter/admission yet and must verify selected model, Free account mode and
+hard-fail quota semantics before onboarding.
+
+See [zero-cost policy](../../../docs/providers/ZERO_COST_POLICY.md),
+[archived adapter documentation](../../../docs/providers/OPENAI_CANDIDATE.md) and
+[admission template](../../templates/admission_report.md).
