@@ -10,8 +10,8 @@ not a claim that planned functionality already exists.
 | 0 | Architecture Freeze | COMPLETE |
 | 1 | Quality & Security Gate | COMPLETE |
 | 2 | Advanced Testing | COMPLETE |
-| 3 | Observability Foundation | IN PROGRESS |
-| 4 | Evaluation Framework | PLANNED |
+| 3 | Observability Foundation | COMPLETE |
+| 4 | Evaluation Framework | IN PROGRESS |
 | 5 | Provider Expansion | PLANNED |
 | 6 | Request Intelligence | PLANNED |
 | 7 | Adaptive Router | PLANNED |
@@ -26,9 +26,9 @@ not a claim that planned functionality already exists.
 
 **Project status: ACTIVE**
 
-**Last completed phase: Phase 2 — Advanced Testing**
+**Last completed phase: Phase 3 — Observability Foundation**
 
-**Current active phase: Phase 3 — Observability Foundation**
+**Current active phase: Phase 4 — Evaluation Framework**
 
 ## Mandatory roadmap rules
 
