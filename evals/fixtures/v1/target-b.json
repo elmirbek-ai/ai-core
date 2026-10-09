@@ -1,0 +1,194 @@
+{
+  "schema_version": 1,
+  "dataset_version": "1.0.0",
+  "dataset_hash": "a57b01d4bd9fe5a306b1a026adaa7cd324ce32a275c4cde4cce33853a7ccb723",
+  "provider": "fixture-b",
+  "model": "synthetic-b",
+  "capabilities": {
+    "text": true,
+    "images": true,
+    "streaming": true
+  },
+  "latency_seconds": 0.1,
+  "ttft_seconds": 0.03,
+  "answers": {
+    "code-add": {
+      "content": "def add(a, b):\n    return a + b",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "code-even": {
+      "content": "900 units in Osh. Monday Room 9. unrelated answer",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "code-square": {
+      "content": "900 units in Osh. Monday Room 9. unrelated answer",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "en-past": {
+      "content": "went",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "en-plural": {
+      "content": "900 units in Osh. Monday Room 9. unrelated answer",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "extract-boolean": {
+      "content": "900 units in Osh. Monday Room 9. unrelated answer",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "extract-event": {
+      "content": "{\"event\": \"workshop\", \"attendees\": 12}",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true,
+      "error_category": "fixture_failure"
+    },
+    "extract-person": {
+      "content": "900 units in Osh. Monday Room 9. unrelated answer",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "general-capital": {
+      "content": "900 units in Osh. Monday Room 9. unrelated answer",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "general-colors": {
+      "content": "- red\n- blue",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "general-mammal": {
+      "content": "900 units in Osh. Monday Room 9. unrelated answer",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "ky-capital": {
+      "content": "900 units in Osh. Monday Room 9. unrelated answer",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "ky-count": {
+      "content": "бир, эки, үч",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "long-instruction": {
+      "content": "{\"code\":\"ORBIT-137\",\"status\":\"verified\"}",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true,
+      "error_category": "fixture_failure"
+    },
+    "long-retrieval": {
+      "content": "900 units in Osh. Monday Room 9. unrelated answer",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "image-circle": {
+      "content": "1",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "image-square": {
+      "content": "900 units in Osh. Monday Room 9. unrelated answer",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "reasoning-balance": {
+      "content": "900 units in Osh. Monday Room 9. unrelated answer",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "reasoning-boxes": {
+      "content": "24",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "reasoning-day": {
+      "content": "900 units in Osh. Monday Room 9. unrelated answer",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "ru-antonym": {
+      "content": "горячий",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true,
+      "error_category": "fixture_failure"
+    },
+    "ru-count": {
+      "content": "один, два, три",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "summary-delivery": {
+      "content": "900 units in Osh. Monday Room 9. unrelated answer",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "summary-meeting": {
+      "content": "900 units in Osh. Monday Room 9. unrelated answer",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "summary-russian": {
+      "content": "Айда купила 3 книги в Бишкеке.",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "translate-en-ky": {
+      "content": "900 units in Osh. Monday Room 9. unrelated answer",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "translate-ky-en": {
+      "content": "900 units in Osh. Monday Room 9. unrelated answer",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "translate-ky-ru": {
+      "content": "Добрый день",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true,
+      "error_category": "fixture_failure"
+    },
+    "translate-ru-ky": {
+      "content": "900 units in Osh. Monday Room 9. unrelated answer",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    }
+  }
+}

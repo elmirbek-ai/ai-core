@@ -74,7 +74,15 @@ Phase 3 adds a pure ASGI correlation/latency boundary, structured application
 JSON logs and lifespan-owned HTTP aggregates. Provider metrics remain in
 `LLMTelemetry`; stream TTFT uses the selected provider attempt. See
 [OBSERVABILITY.md](OBSERVABILITY.md) for schemas, security boundaries and metric
-definitions. There is no public metrics endpoint; Phase 3 remains IN PROGRESS.
+definitions. There is no public metrics endpoint. Phase status is governed by
+[ROADMAP.md](ROADMAP.md).
+
+Phase 4 provides repository-local evaluation tools under `app/evaluation/`,
+versioned datasets and synthetic fixtures under `evals/`, and compatible JSON/
+Markdown evidence reports. Evaluation is separate from production inference;
+existing-provider live runs require explicit dual opt-in. See
+[EVALUATION.md](EVALUATION.md) for scoring, provenance, privacy and limitations.
+Phase 4 remains IN PROGRESS and does not admit providers or change routing.
 
 ### Current public API
 

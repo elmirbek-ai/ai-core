@@ -60,6 +60,9 @@ tmp/
 # Generated benchmark output
 benchmarks/results/
 
+# Generated evaluation reports (versioned evals/ datasets remain tracked)
+eval-results/
+
 # TLS certificates and key stores
 *.pem
 *.key

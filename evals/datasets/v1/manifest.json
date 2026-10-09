@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "dataset_version": "1.0.0",
+  "created": "2026-10-09",
+  "domain_files": {
+    "code": "code.jsonl",
+    "english": "english.jsonl",
+    "extraction": "extraction.jsonl",
+    "general": "general.jsonl",
+    "kyrgyz": "kyrgyz.jsonl",
+    "long_context": "long_context.jsonl",
+    "multimodal": "multimodal.jsonl",
+    "reasoning": "reasoning.jsonl",
+    "russian": "russian.jsonl",
+    "summarization": "summarization.jsonl",
+    "translation": "translation.jsonl"
+  },
+  "supported_languages": [
+    "ky",
+    "ru",
+    "en"
+  ],
+  "case_count": 29,
+  "quality_weights": {
+    "accuracy_score": 1.0,
+    "instruction_following_score": 1.0,
+    "reasoning_score": 1.0,
+    "formatting_score": 1.0,
+    "groundedness_score": 1.0
+  },
+  "content_hash": "a57b01d4bd9fe5a306b1a026adaa7cd324ce32a275c4cde4cce33853a7ccb723"
+}

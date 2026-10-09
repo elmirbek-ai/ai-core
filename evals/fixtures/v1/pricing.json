@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "version": "synthetic-v1",
+  "price_date": "2026-10-09",
+  "currency": "USD",
+  "evidence": "synthetic_fixture",
+  "entries": [
+    {
+      "provider": "fixture-a",
+      "model": "synthetic-a",
+      "input_usd_per_million": "0.10",
+      "output_usd_per_million": "0.20"
+    },
+    {
+      "provider": "fixture-b",
+      "model": "synthetic-b",
+      "input_usd_per_million": "0.20",
+      "output_usd_per_million": "0.40"
+    }
+  ]
+}

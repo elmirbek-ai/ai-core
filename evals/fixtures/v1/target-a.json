@@ -1,0 +1,190 @@
+{
+  "schema_version": 1,
+  "dataset_version": "1.0.0",
+  "dataset_hash": "a57b01d4bd9fe5a306b1a026adaa7cd324ce32a275c4cde4cce33853a7ccb723",
+  "provider": "fixture-a",
+  "model": "synthetic-a",
+  "capabilities": {
+    "text": true,
+    "images": true,
+    "streaming": true
+  },
+  "latency_seconds": 0.04,
+  "ttft_seconds": 0.01,
+  "answers": {
+    "code-add": {
+      "content": "def add(a, b):\n    return a + b",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "code-even": {
+      "content": "def is_even(n):\n    return n % 2 == 0",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "code-square": {
+      "content": "def square(n):\n    return n * n",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "en-past": {
+      "content": "went",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "en-plural": {
+      "content": "children",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "extract-boolean": {
+      "content": "{\"enabled\": true, \"retries\": 0}",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "extract-event": {
+      "content": "{\"event\": \"workshop\", \"attendees\": 12}",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "extract-person": {
+      "content": "{\"name\": \"Aida\", \"age\": 28}",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "general-capital": {
+      "content": "Bishkek",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "general-colors": {
+      "content": "- red\n- blue",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "general-mammal": {
+      "content": "mammal",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "ky-capital": {
+      "content": "Бишкек",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "ky-count": {
+      "content": "бир, эки, үч",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "long-instruction": {
+      "content": "{\"code\":\"ORBIT-137\",\"status\":\"verified\"}",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "long-retrieval": {
+      "content": "ORBIT-137",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "image-circle": {
+      "content": "1",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "image-square": {
+      "content": "square",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "reasoning-balance": {
+      "content": "17",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "reasoning-boxes": {
+      "content": "24",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "reasoning-day": {
+      "content": "Tuesday",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "ru-antonym": {
+      "content": "горячий",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "ru-count": {
+      "content": "один, два, три",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "summary-delivery": {
+      "content": "Aida delivered 40 units on 12 May in Bishkek.",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "summary-meeting": {
+      "content": "Meeting: Friday, 10:00, Room 2.",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "summary-russian": {
+      "content": "Айда купила 3 книги в Бишкеке.",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "translate-en-ky": {
+      "content": "Кутман таң",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "translate-ky-en": {
+      "content": "Thank you",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "translate-ky-ru": {
+      "content": "Добрый день",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    },
+    "translate-ru-ky": {
+      "content": "Кутман кеч",
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "usage_reliable": true
+    }
+  }
+}
