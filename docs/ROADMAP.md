@@ -11,8 +11,8 @@ not a claim that planned functionality already exists.
 | 1 | Quality & Security Gate | COMPLETE |
 | 2 | Advanced Testing | COMPLETE |
 | 3 | Observability Foundation | COMPLETE |
-| 4 | Evaluation Framework | IN PROGRESS |
-| 5 | Provider Expansion | PLANNED |
+| 4 | Evaluation Framework | COMPLETE |
+| 5 | Provider Expansion | IN PROGRESS |
 | 6 | Request Intelligence | PLANNED |
 | 7 | Adaptive Router | PLANNED |
 | 8 | Prompt Optimization | PLANNED |
@@ -26,9 +26,9 @@ not a claim that planned functionality already exists.
 
 **Project status: ACTIVE**
 
-**Last completed phase: Phase 3 — Observability Foundation**
+**Last completed phase: Phase 4 — Evaluation Framework**
 
-**Current active phase: Phase 4 — Evaluation Framework**
+**Current active phase: Phase 5 — Provider Expansion**
 
 ## Mandatory roadmap rules
 
