@@ -1,6 +1,14 @@
 # AI Core Pause Checkpoint
 
-## Status
+## Resume note
+
+- Resumed: **2026-10-09**
+- Status: **HISTORICAL CHECKPOINT — PROJECT RESUMED**
+- Resumed phase: **Phase 3 — Observability Foundation**
+
+The sections below preserve the historical state at the pause checkpoint.
+
+## Status at pause
 
 **PAUSED**
 
