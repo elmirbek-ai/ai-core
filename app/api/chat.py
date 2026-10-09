@@ -8,6 +8,7 @@ from typing import NoReturn
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 
+from app.core.observability import error_category, log_event
 from app.core.rate_limit import enforce_api_rate_limit, enforce_stream_rate_limit
 from app.llm.exceptions import (
     LLMAuthenticationError,
@@ -44,15 +45,12 @@ def raise_provider_http_error(
     status_code: int,
     error: Exception,
 ) -> NoReturn:
-    sanitized_error = LLMProviderError("LLM provider request failed")
-    logger.error(
-        "LLM chat request failed: %s",
-        type(error).__name__,
-        exc_info=(
-            LLMProviderError,
-            sanitized_error,
-            error.__traceback__,
-        ),
+    log_event(
+        logger,
+        "error_handled",
+        level=logging.ERROR,
+        error_category=error_category(error),
+        exception_type=type(error).__name__,
     )
     raise HTTPException(
         status_code=status_code,
@@ -108,12 +106,24 @@ async def stream_chat(
                     yield serialize_sse(event.event, event.data)
         except asyncio.CancelledError:
             raise
-        except LLMTimeoutError:
+        except LLMTimeoutError as error:
+            log_event(
+                logger,
+                "error_handled",
+                streaming=True,
+                error_category=error_category(error),
+            )
             yield serialize_sse(
                 "error",
                 {"message": "LLM stream timed out"},
             )
-        except Exception:
+        except Exception as error:
+            log_event(
+                logger,
+                "error_handled",
+                streaming=True,
+                error_category=error_category(error),
+            )
             yield serialize_sse(
                 "error",
                 {"message": "LLM provider temporarily unavailable"},

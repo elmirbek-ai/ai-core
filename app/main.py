@@ -6,6 +6,11 @@ from fastapi import FastAPI
 from app.api.chat import router as chat_router
 from app.core.auth import configure_auth_state
 from app.core.config import get_settings
+from app.core.observability import (
+    HTTPObservability,
+    ObservabilityMiddleware,
+    configure_logging,
+)
 from app.core.rate_limit import APIRateLimiter
 from app.llm.budget import RequestBudgetPolicy
 from app.llm.concurrency import ProviderConcurrencyManager
@@ -22,6 +27,8 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    configure_logging()
+    app.state.http_observability = HTTPObservability()
     configure_auth_state(app, settings)
     app.state.api_rate_limiter = APIRateLimiter(
         enabled=settings.ai_core_rate_limit_enabled,
@@ -113,6 +120,7 @@ app = FastAPI(
     description="Reusable AI / LLM Gateway",
     lifespan=lifespan,
 )
+app.add_middleware(ObservabilityMiddleware)
 
 
 @app.get("/health", tags=["System"])

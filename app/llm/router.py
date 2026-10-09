@@ -6,6 +6,7 @@ from contextlib import aclosing, asynccontextmanager
 from dataclasses import dataclass
 from typing import Any
 
+from app.core.observability import error_category, log_event
 from app.llm.base import BaseLLMProvider
 from app.llm.budget import RequestBudgetPolicy
 from app.llm.capabilities import ProviderCapabilities, messages_contain_images
@@ -49,6 +50,7 @@ class _RequestExecutionState:
 class _StreamExecutionState:
     selected_provider: str | None = None
     first_token_time: float | None = None
+    selected_attempt_started: float | None = None
 
 
 class LLMRouter:
@@ -155,6 +157,8 @@ class LLMRouter:
         execution = _StreamExecutionState()
         success = False
         cancelled = False
+        stream_error: BaseException | None = None
+        log_event(logger, "stream_started", task=task.value, streaming=True)
         try:
             requires_images = messages_contain_images(messages)
             if requires_images and task != TaskType.MULTIMODAL:
@@ -188,18 +192,36 @@ class LLMRouter:
         except (asyncio.CancelledError, GeneratorExit):
             cancelled = True
             raise
+        except Exception as error:
+            stream_error = error
+            raise
         finally:
+            duration = self._clock() - request_started
+            log_event(
+                logger,
+                "stream_cancelled"
+                if cancelled
+                else ("stream_completed" if success else "stream_failed"),
+                task=task.value,
+                provider=execution.selected_provider,
+                streaming=True,
+                duration_ms=max(0.0, duration) * 1000,
+                error_category="cancelled"
+                if cancelled
+                else (error_category(stream_error) if stream_error else None),
+            )
             if self.telemetry is not None:
                 first_token_latency = (
-                    execution.first_token_time - request_started
+                    execution.first_token_time - execution.selected_attempt_started
                     if execution.first_token_time is not None
+                    and execution.selected_attempt_started is not None
                     else None
                 )
                 await self.telemetry.record_stream_request(
                     task=task,
                     selected_provider=execution.selected_provider,
                     success=success,
-                    duration_seconds=self._clock() - request_started,
+                    duration_seconds=duration,
                     time_to_first_token_seconds=first_token_latency,
                     cancelled=cancelled,
                 )
@@ -305,9 +327,12 @@ class LLMRouter:
             ):
                 if self.telemetry is not None:
                     await self.telemetry.record_circuit_skip(provider.name)
-                logger.warning(
-                    "Provider %s skipped because circuit open",
-                    provider.name,
+                log_event(
+                    logger,
+                    "provider_circuit_skipped",
+                    provider=provider.name,
+                    task=task.value,
+                    error_category="circuit_skip",
                 )
                 continue
 
@@ -318,38 +343,57 @@ class LLMRouter:
                 async with self._provider_slot(provider.name, remaining):
                     provider_remaining = self._remaining_budget(deadline, task)
                     attempt_started = self._clock()
-                    stream = self._stream_provider(
-                        provider=provider,
-                        provider_model=provider_model,
-                        messages=messages,
-                        remaining=provider_remaining,
-                    )
-                    async with aclosing(stream):
-                        async for chunk in stream:
-                            if not emitted_delta:
-                                emitted_delta = True
-                                execution.selected_provider = provider.name
-                                execution.first_token_time = self._clock()
-                                yield StreamEvent(
-                                    event="meta",
-                                    data={
-                                        "provider": chunk.provider,
-                                        "model": chunk.model,
-                                    },
-                                )
-                            yield StreamEvent(
-                                event="delta",
-                                data={"content": chunk.content},
-                            )
-                    if not emitted_delta:
-                        raise LLMUpstreamError(
-                            "Provider stream ended without content",
-                        ) from None
-                if self.telemetry is not None:
-                    await self.telemetry.record_provider_stream_result(
+                    async with self._observe_attempt(
                         provider.name,
-                        success=True,
-                    )
+                        provider_model,
+                        task,
+                        streaming=True,
+                        fallback_depth=index,
+                    ):
+                        stream = self._stream_provider(
+                            provider=provider,
+                            provider_model=provider_model,
+                            messages=messages,
+                            remaining=provider_remaining,
+                        )
+                        async with aclosing(stream):
+                            async for chunk in stream:
+                                if not chunk.content:
+                                    continue
+                                if not emitted_delta:
+                                    emitted_delta = True
+                                    execution.selected_provider = provider.name
+                                    execution.first_token_time = self._clock()
+                                    execution.selected_attempt_started = attempt_started
+                                    log_event(
+                                        logger,
+                                        "stream_first_token",
+                                        provider=provider.name,
+                                        task=task.value,
+                                        streaming=True,
+                                        fallback_depth=index,
+                                        ttft_ms=max(
+                                            0.0,
+                                            execution.first_token_time
+                                            - attempt_started,
+                                        )
+                                        * 1000,
+                                    )
+                                    yield StreamEvent(
+                                        event="meta",
+                                        data={
+                                            "provider": chunk.provider,
+                                            "model": chunk.model,
+                                        },
+                                    )
+                                yield StreamEvent(
+                                    event="delta",
+                                    data={"content": chunk.content},
+                                )
+                        if not emitted_delta:
+                            raise LLMUpstreamError(
+                                "Provider stream ended without content",
+                            ) from None
                 if self.health_manager is not None:
                     await self.health_manager.record_success(provider.name)
                 yield StreamEvent(event="done", data={})
@@ -362,20 +406,13 @@ class LLMRouter:
                 timeout_error = LLMTimeoutError(
                     "LLM request budget exhausted",
                 )
-                await self._record_stream_failure(provider.name)
                 if self.health_manager is not None:
                     await self.health_manager.record_failure(
                         provider.name,
                         timeout_error,
                     )
                 raise timeout_error from None
-            except asyncio.CancelledError:
-                raise
-            except LLMAuthenticationError:
-                await self._record_stream_failure(provider.name)
-                raise
             except RECOVERABLE_PROVIDER_ERRORS as error:
-                await self._record_stream_failure(provider.name)
                 if self.health_manager is not None:
                     await self.health_manager.record_failure(
                         provider.name,
@@ -390,14 +427,6 @@ class LLMRouter:
                         "Provider %s stream failed before first token; falling back",
                         provider.name,
                     )
-            except LLMProviderError:
-                await self._record_stream_failure(provider.name)
-                raise
-            except Exception:
-                if attempt_started is not None:
-                    await self._record_stream_failure(provider.name)
-                raise
-
         if last_recoverable_error is not None:
             if recoverable_failures == 1:
                 raise last_recoverable_error
@@ -445,13 +474,6 @@ class LLMRouter:
         except TimeoutError:
             raise _RequestBudgetExceeded from None
 
-    async def _record_stream_failure(self, provider_name: str) -> None:
-        if self.telemetry is not None:
-            await self.telemetry.record_provider_stream_result(
-                provider_name,
-                success=False,
-            )
-
     async def _run_chain(
         self,
         messages: list[dict[str, Any]],
@@ -478,9 +500,12 @@ class LLMRouter:
             ):
                 if self.telemetry is not None:
                     await self.telemetry.record_circuit_skip(provider.name)
-                logger.warning(
-                    "Provider %s skipped because circuit open",
-                    provider.name,
+                log_event(
+                    logger,
+                    "provider_circuit_skipped",
+                    provider=provider.name,
+                    task=task.value,
+                    error_category="circuit_skip",
                 )
                 continue
 
@@ -509,12 +534,19 @@ class LLMRouter:
                         if provider_remaining <= 0:
                             raise ProviderConcurrencyTimeout from None
                     attempt_started = self._clock()
-                    result = await self._call_provider(
-                        provider=provider,
-                        provider_model=provider_model,
-                        messages=messages,
-                        remaining=provider_remaining,
-                    )
+                    async with self._observe_attempt(
+                        provider.name,
+                        provider_model,
+                        task,
+                        streaming=False,
+                        fallback_depth=index,
+                    ):
+                        result = await self._call_provider(
+                            provider=provider,
+                            provider_model=provider_model,
+                            messages=messages,
+                            remaining=provider_remaining,
+                        )
                 attempt_latency = self._clock() - attempt_started
                 if self.telemetry is not None:
                     await self.telemetry.record_provider_success(
@@ -656,3 +688,61 @@ class LLMRouter:
             timeout_seconds=remaining,
         ):
             yield
+
+    @asynccontextmanager
+    async def _observe_attempt(
+        self,
+        provider: str,
+        model: str | None,
+        task: TaskType,
+        *,
+        streaming: bool,
+        fallback_depth: int,
+    ) -> AsyncIterator[None]:
+        started = self._clock()
+        fields: dict[str, Any] = dict(
+            provider=provider,
+            model=model,
+            task=task.value,
+            streaming=streaming,
+            fallback_depth=fallback_depth,
+        )
+        log_event(logger, "provider_attempt_started", **fields)
+        try:
+            yield
+        except BaseException as error:
+            category = (
+                "budget_timeout"
+                if isinstance(error, _RequestBudgetExceeded)
+                else error_category(error)
+            )
+            if streaming and self.telemetry is not None:
+                await self.telemetry.record_provider_stream_result(
+                    provider,
+                    success=False,
+                    latency_seconds=self._clock() - started,
+                    error_category=category,
+                )
+            log_event(
+                logger,
+                "provider_attempt_failed",
+                level=logging.WARNING,
+                **fields,
+                duration_ms=max(0.0, self._clock() - started) * 1000,
+                error_category=category,
+                exception_type=type(error).__name__,
+            )
+            raise
+        else:
+            if streaming and self.telemetry is not None:
+                await self.telemetry.record_provider_stream_result(
+                    provider,
+                    success=True,
+                    latency_seconds=self._clock() - started,
+                )
+            log_event(
+                logger,
+                "provider_attempt_completed",
+                **fields,
+                duration_ms=max(0.0, self._clock() - started) * 1000,
+            )

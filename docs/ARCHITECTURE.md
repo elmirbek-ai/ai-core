@@ -70,6 +70,12 @@ flowchart LR
     Router --> Telemetry[In-memory telemetry]
 ```
 
+Phase 3 adds a pure ASGI correlation/latency boundary, structured application
+JSON logs and lifespan-owned HTTP aggregates. Provider metrics remain in
+`LLMTelemetry`; stream TTFT uses the selected provider attempt. See
+[OBSERVABILITY.md](OBSERVABILITY.md) for schemas, security boundaries and metric
+definitions. There is no public metrics endpoint; Phase 3 remains IN PROGRESS.
+
 ### Current public API
 
 Protected with the AI Core Bearer credential:

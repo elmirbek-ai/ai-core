@@ -31,6 +31,10 @@ class ProviderMetrics:
     streaming_attempts: int = 0
     streaming_successes: int = 0
     streaming_failures: int = 0
+    streaming_cancellations: int = 0
+    streaming_total_latency_seconds: float = 0.0
+    streaming_last_latency_seconds: float = 0.0
+    streaming_failures_by_category: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -150,6 +154,8 @@ class LLMTelemetry:
         provider_name: str,
         *,
         success: bool,
+        latency_seconds: float = 0.0,
+        error_category: str | None = None,
     ) -> None:
         if not self.enabled:
             return
@@ -159,10 +165,32 @@ class LLMTelemetry:
                 ProviderMetrics(),
             )
             metrics.streaming_attempts += 1
+            latency = max(0.0, latency_seconds)
+            metrics.streaming_total_latency_seconds += latency
+            metrics.streaming_last_latency_seconds = latency
             if success:
                 metrics.streaming_successes += 1
             else:
                 metrics.streaming_failures += 1
+                category = (
+                    error_category
+                    if error_category
+                    in {
+                        "authentication",
+                        "rate_limit",
+                        "timeout",
+                        "upstream",
+                        "provider",
+                        "budget_timeout",
+                        "cancelled",
+                    }
+                    else "provider"
+                )
+                metrics.streaming_failures_by_category[category] = (
+                    metrics.streaming_failures_by_category.get(category, 0) + 1
+                )
+                if category == "cancelled":
+                    metrics.streaming_cancellations += 1
 
     async def record_stream_request(
         self,
@@ -190,6 +218,7 @@ class LLMTelemetry:
                 metrics.failures += 1
             if cancelled:
                 metrics.cancellations += 1
+            metrics.last_time_to_first_token_seconds = None
             if time_to_first_token_seconds is not None:
                 first_token = max(0.0, time_to_first_token_seconds)
                 metrics.total_time_to_first_token_seconds += first_token
@@ -250,6 +279,20 @@ class LLMTelemetry:
                     "streaming_attempts": metrics.streaming_attempts,
                     "streaming_successes": metrics.streaming_successes,
                     "streaming_failures": metrics.streaming_failures,
+                    "streaming_cancellations": metrics.streaming_cancellations,
+                    "streaming_total_latency_seconds": (
+                        metrics.streaming_total_latency_seconds
+                    ),
+                    "streaming_last_latency_seconds": (
+                        metrics.streaming_last_latency_seconds
+                    ),
+                    "streaming_average_latency_seconds": self._average(
+                        metrics.streaming_total_latency_seconds,
+                        metrics.streaming_attempts,
+                    ),
+                    "streaming_failures_by_category": dict(
+                        metrics.streaming_failures_by_category
+                    ),
                 }
                 for name, metrics in self._providers.items()
             }

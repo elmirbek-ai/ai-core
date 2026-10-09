@@ -136,7 +136,12 @@ def test_stream_cancellation_before_first_token_closes_without_fallback() -> Non
     assert closed
     assert concurrency["groq"]["in_flight"] == 0
     assert health == {}
-    assert telemetry["providers"] == {}
+    assert telemetry["providers"]["groq"]["attempts"] == 0
+    assert telemetry["providers"]["groq"]["streaming_attempts"] == 1
+    assert telemetry["providers"]["groq"]["streaming_cancellations"] == 1
+    assert telemetry["providers"]["groq"]["streaming_failures_by_category"] == {
+        "cancelled": 1
+    }
     assert telemetry["streaming"]["cancellations"] == 1
 
 
@@ -179,5 +184,10 @@ def test_stream_cancellation_after_delta_never_falls_back_or_emits_done() -> Non
     assert closed
     assert concurrency["groq"]["in_flight"] == 0
     assert health == {}
-    assert telemetry["providers"] == {}
+    assert telemetry["providers"]["groq"]["attempts"] == 0
+    assert telemetry["providers"]["groq"]["streaming_attempts"] == 1
+    assert telemetry["providers"]["groq"]["streaming_cancellations"] == 1
+    assert telemetry["providers"]["groq"]["streaming_failures_by_category"] == {
+        "cancelled": 1
+    }
     assert telemetry["streaming"]["cancellations"] == 1

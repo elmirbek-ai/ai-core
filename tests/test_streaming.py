@@ -430,7 +430,12 @@ def test_client_close_releases_slot_without_health_failure() -> None:
     assert concurrency["groq"]["in_flight"] == 0
     assert primary.active == 0
     assert health_state == {}
-    assert metrics["providers"] == {}
+    assert metrics["providers"]["groq"]["attempts"] == 0
+    assert metrics["providers"]["groq"]["streaming_attempts"] == 1
+    assert metrics["providers"]["groq"]["streaming_cancellations"] == 1
+    assert metrics["providers"]["groq"]["streaming_failures_by_category"] == {
+        "cancelled": 1
+    }
     assert metrics["streaming"]["cancellations"] == 1
 
 
@@ -467,7 +472,12 @@ def test_task_cancellation_releases_slot_without_health_failure() -> None:
     assert concurrency["groq"]["in_flight"] == 0
     assert primary.active == 0
     assert health_state == {}
-    assert metrics["providers"] == {}
+    assert metrics["providers"]["groq"]["attempts"] == 0
+    assert metrics["providers"]["groq"]["streaming_attempts"] == 1
+    assert metrics["providers"]["groq"]["streaming_cancellations"] == 1
+    assert metrics["providers"]["groq"]["streaming_failures_by_category"] == {
+        "cancelled": 1
+    }
     assert metrics["streaming"]["cancellations"] == 1
 
 
